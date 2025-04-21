@@ -1,3 +1,4 @@
+
 import SwiftUI
 import Charts
 
@@ -32,12 +33,22 @@ struct CoreTempDetailView: View {
     var latestTemp: String {
         guard let latest = healthKitManager.latestCoreTemp else { return "-" }
         let temp = temperatureUnit == "°F" ? celsiusToFahrenheit(latest) : latest
-      return "\(temp)\(temperatureUnit)"
+        return "\(temp)\(temperatureUnit)"
     }
 
     var latestTimestamp: String {
         guard let lastPoint = healthKitManager.coreTempTrendData.last else { return "-" }
         return timeFormatter.string(from: lastPoint.timestamp)
+    }
+
+    var customYDomain: ClosedRange<Double> {
+        let temps = convertedTempData.map { $0.temperature }
+        guard let min = temps.min(), let max = temps.max() else {
+            return 36.0...38.0 // fallback
+        }
+        let lower = min - 0.2
+        let upper = max + 0.2
+        return lower...upper
     }
 
     var body: some View {
@@ -74,13 +85,9 @@ struct CoreTempDetailView: View {
                                 x: .value("Time", point.timestamp),
                                 y: .value("Temperature", point.temperature)
                             )
-                            .annotation(position: .top) {
-                                Text("\(Int(point.heartRate)) BPM")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
                         }
                     }
+                    .chartYScale(domain: customYDomain)
                     .frame(height: 200)
                     .padding(.horizontal)
                 }
@@ -126,4 +133,3 @@ struct CoreTempDetailView: View {
         return formatter
     }
 }
-
