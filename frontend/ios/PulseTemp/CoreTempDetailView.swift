@@ -100,10 +100,8 @@ struct CoreTempDetailView: View {
                 .background(Color.orange)
                 .cornerRadius(12)
 
-                // Show More Button (placeholder)
-                Button(action: {
-                    print("Show More Temperature Data tapped")
-                }) {
+                // Show More Button
+                NavigationLink(destination: TrendsView()) {
                     Text("Show More Temperature Data")
                         .foregroundColor(.blue)
                         .fontWeight(.semibold)

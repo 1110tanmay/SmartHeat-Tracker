@@ -24,6 +24,18 @@ struct SummaryView: View {
         healthKitManager.latestDistance ?? 4.5
     }
 
+    var coreTemp: String {
+        guard let ct = healthKitManager.latestCoreTemp else {
+            return "-"
+        }
+
+        let converted = temperatureUnit == "°F"
+            ? (ct * 9 / 5) + 32
+            : ct
+
+        return String(format: "%.4f %@", converted, temperatureUnit)
+    }
+
     // MARK: - Mock chart for temperature (for now)
     let mockTempTrend: [TemperatureData] = [
         TemperatureData(time: "8AM", temperature: 36.8),
@@ -47,7 +59,7 @@ struct SummaryView: View {
                     NavigationLink(destination: CoreTempDetailView()) {
                         HealthMetricCard(
                             title: "Core Temperature",
-                            value: formattedTemperature(37.2), // placeholder
+                            value: coreTemp,
                             icon: "thermometer",
                             color: .orange,
                             isLarge: true,
@@ -107,30 +119,26 @@ struct SummaryView: View {
                             color: .purple
                         )
                     }
-                  
-                  NavigationLink(destination: StepsDetailView()) {
-                      HealthMetricCard(
-                          title: "Steps Walked",
-                          value: "\(steps.formatted()) steps",
-                          icon: "figure.walk",
-                          color: .teal
-                      )
-                  }
 
-                  // Distance Covered
-                  NavigationLink(destination:
-                      DistanceDetailView()
-                          .environmentObject(healthKitManager)
-                  ) {
-                      HealthMetricCard(
-                          title: "Distance Covered",
-                          value: formattedDistance(distanceKm),
-                          icon: "map.fill",
-                          color: .blue
-                      )
-                  }
+                    // Steps Walked
+                    NavigationLink(destination: StepsDetailView()) {
+                        HealthMetricCard(
+                            title: "Steps Walked",
+                            value: "\(steps.formatted()) steps",
+                            icon: "figure.walk",
+                            color: .teal
+                        )
+                    }
 
-
+                    // Distance Covered
+                    NavigationLink(destination: DistanceDetailView().environmentObject(healthKitManager)) {
+                        HealthMetricCard(
+                            title: "Distance Covered",
+                            value: formattedDistance(distanceKm),
+                            icon: "map.fill",
+                            color: .blue
+                        )
+                    }
                 }
                 .padding(.vertical)
             }
@@ -181,7 +189,6 @@ struct SummaryView: View {
     }
 }
 
-// Still mock for temp chart
 struct TemperatureData: Identifiable {
     let id = UUID()
     let time: String
