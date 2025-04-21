@@ -1,8 +1,8 @@
-//
-//  StepPoint.swift
-//  PulseTemp
-//
-//  Created by Tanmay Shelar on 4/19/25.
-//
-
 import Foundation
+
+struct StepPoint: Identifiable, Equatable {
+    let id = UUID()
+    let timestamp: Date    // ✅ Correct type for chart x-axis
+    var steps: Int
+}
+

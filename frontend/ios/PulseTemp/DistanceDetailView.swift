@@ -2,82 +2,126 @@ import SwiftUI
 import Charts
 
 struct DistanceDetailView: View {
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
-
-    // Distance data in kilometers
-    let distanceTrendData: [(time: String, distance: Double)] = [
-        ("10 AM", 0.5), ("11 AM", 1.2), ("12 PM", 2.1),
-        ("1 PM", 3.0), ("2 PM", 3.8), ("3 PM", 4.5)
-    ]
-    
-    var convertedDistanceData: [(time: String, distance: Double)] {
-        distanceTrendData.map { (time, dist) in
-            (time, distanceUnit == "miles" ? kmToMiles(dist) : dist)
-        }
-    }
-
-    var latestDistanceText: String {
-        guard let latest = convertedDistanceData.last else { return "-" }
-        return String(format: "%.2f %@", latest.distance, distanceUnit)
-    }
+    @State private var timer: Timer?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+
+                // Convert distance values
+                let distanceData = healthKitManager.distanceTrendData.map { point in
+                    (
+                        timestamp: point.timestamp,
+                        distance: distanceUnit == "miles"
+                            ? kmToMiles(point.distance)
+                            : point.distance
+                    )
+                }
+
+                let latestDistanceText = distanceData.last.map {
+                    String(format: "%.2f %@", $0.distance, distanceUnit)
+                } ?? "-"
+
                 // Title
                 Text("Distance Covered Details")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                // Distance Trend Chart
-                Chart {
-                    ForEach(convertedDistanceData, id: \.time) { dataPoint in
-                        LineMark(
-                            x: .value("Time", dataPoint.time),
-                            y: .value("Distance (\(distanceUnit))", dataPoint.distance)
-                        )
-                        .foregroundStyle(Color.blue)
+                // Chart
+                if !distanceData.isEmpty {
+                    Chart {
+                        ForEach(distanceData, id: \.timestamp) { point in
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Distance (\(distanceUnit))", point.distance)
+                            )
+                            .foregroundStyle(Color.blue)
+                        }
                     }
+                    .frame(height: 200)
+                    .padding()
+                } else {
+                    Text("No distance data available.")
+                        .foregroundColor(.gray)
+                        .padding()
                 }
-                .frame(height: 200)
-                .padding()
 
-                // Latest Distance Highlight
-                VStack {
-                    Text("Latest: 3:00 PM")
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                    Text(latestDistanceText)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                // Latest
+                if let latest = distanceData.last {
+                    VStack {
+                        Text("Latest: \(formattedTime(latest.timestamp))")
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                        Text(latestDistanceText)
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue)
-                .cornerRadius(12)
 
-                // 🧠 Health Insights (static for now)
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("🧠 Health Insights")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    InsightCard(icon: "map.fill", color: .blue, text: "You covered 20% more distance than last week!")
-                    InsightCard(icon: "figure.walk", color: .green, text: "Your longest walk was at 1 PM with 3 km covered.")
+                // Navigation to Trends Page
+                NavigationLink(destination: TrendsView()) {
+                    Text("Show More Distance Data")
+                        .foregroundColor(.blue)
+                        .fontWeight(.semibold)
                 }
-                .padding()
 
                 Spacer()
             }
             .padding()
         }
         .navigationTitle("Distance Covered")
+        .onAppear {
+            startPolling()
+        }
+        .onDisappear {
+            stopPolling()
+        }
     }
 
-    // MARK: - Distance Conversion
+    // MARK: - Format Timestamp
+    func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    // MARK: - Conversion
     func kmToMiles(_ km: Double) -> Double {
         km * 0.621371
+    }
+
+    // MARK: - Timer Polling
+    func startPolling() {
+        fetchLiveDistance()
+
+        timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
+            fetchLiveDistance()
+        }
+    }
+
+    func stopPolling() {
+        timer?.invalidate()
+        timer = nil
+    }
+
+    func fetchLiveDistance() {
+        healthKitManager.fetchLatestDistance()
+
+        if let distance = healthKitManager.latestDistance {
+            let now = Date()
+            let point = DistancePoint(timestamp: now, distance: distance)
+
+            if healthKitManager.distanceTrendData.last?.timestamp != point.timestamp {
+                healthKitManager.distanceTrendData.append(point)
+            }
+        }
     }
 }
 

@@ -23,7 +23,7 @@ struct ActivityDetailView: View {
         ScrollView {
             VStack(spacing: 20) {
 
-                // 🧍 Steps Walked
+                // 🢍 Steps Walked
                 VStack {
                     Text("Steps Walked")
                         .font(.headline)
@@ -34,10 +34,11 @@ struct ActivityDetailView: View {
 
                 Chart {
                     ForEach(healthKitManager.stepsTrendData) { point in
-                        BarMark(
+                        LineMark(
                             x: .value("Time", point.timestamp),
                             y: .value("Steps", point.steps)
                         )
+                        .interpolationMethod(.monotone)
                         .foregroundStyle(Color.blue)
                     }
                 }
@@ -55,10 +56,11 @@ struct ActivityDetailView: View {
 
                 Chart {
                     ForEach(healthKitManager.caloriesTrendData) { point in
-                        BarMark(
-                            x: .value("Time", point.timestamp),
+                        LineMark(
+                          x: .value("Time", point.date),
                             y: .value("Calories", point.calories)
                         )
+                        .interpolationMethod(.monotone)
                         .foregroundStyle(Color.red)
                     }
                 }
@@ -80,6 +82,7 @@ struct ActivityDetailView: View {
                             x: .value("Time", point.timestamp),
                             y: .value("Distance (\(distanceUnit))", point.distance)
                         )
+                        .interpolationMethod(.monotone)
                         .foregroundStyle(Color.green)
                     }
                 }
@@ -106,20 +109,14 @@ struct ActivityDetailView: View {
 
     // MARK: - Timer-based Polling
     func startPolling() {
-        healthKitManager.fetchLatestSteps()
-        healthKitManager.fetchLatestCalories()
-        healthKitManager.fetchLatestDistance()
-        healthKitManager.fetchStepsTrend()
-        healthKitManager.fetchCaloriesTrend()
-        healthKitManager.fetchDistanceTrend()
+        fetchLiveSteps()
+        fetchLiveCalories()
+        fetchLiveDistance()
 
         timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-            healthKitManager.fetchLatestSteps()
-            healthKitManager.fetchLatestCalories()
-            healthKitManager.fetchLatestDistance()
-            healthKitManager.fetchStepsTrend()
-            healthKitManager.fetchCaloriesTrend()
-            healthKitManager.fetchDistanceTrend()
+            fetchLiveSteps()
+            fetchLiveCalories()
+            fetchLiveDistance()
         }
     }
 
@@ -127,5 +124,38 @@ struct ActivityDetailView: View {
         timer?.invalidate()
         timer = nil
     }
-}
 
+    // MARK: - Live Appending Functions
+    func fetchLiveSteps() {
+        healthKitManager.fetchLatestSteps()
+        if let steps = healthKitManager.latestSteps {
+          let now = Date()
+          let point = StepPoint(timestamp: now, steps: steps)
+            if healthKitManager.stepsTrendData.last?.timestamp != point.timestamp {
+                healthKitManager.stepsTrendData.append(point)
+            }
+        }
+    }
+
+    func fetchLiveCalories() {
+        healthKitManager.fetchLatestCalories()
+        if let calories = healthKitManager.latestCalories {
+          let now = Date()
+          let point = CaloriePoint(date: now, calories: calories)
+          if healthKitManager.caloriesTrendData.last?.date != point.date {
+              healthKitManager.caloriesTrendData.append(point)
+          }
+            }
+        }
+
+    func fetchLiveDistance() {
+        healthKitManager.fetchLatestDistance()
+        if let distance = healthKitManager.latestDistance {
+          let now = Date()
+          let point = DistancePoint(timestamp: now, distance: distance)
+            if healthKitManager.distanceTrendData.last?.timestamp != point.timestamp {
+                healthKitManager.distanceTrendData.append(point)
+            }
+        }
+    }
+}

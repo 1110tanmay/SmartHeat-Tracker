@@ -107,16 +107,30 @@ struct SummaryView: View {
                             color: .purple
                         )
                     }
+                  
+                  NavigationLink(destination: StepsDetailView()) {
+                      HealthMetricCard(
+                          title: "Steps Walked",
+                          value: "\(steps.formatted()) steps",
+                          icon: "figure.walk",
+                          color: .teal
+                      )
+                  }
 
-                    // Distance
-                    NavigationLink(destination: DistanceDetailView()) {
-                        HealthMetricCard(
-                            title: "Distance Covered",
-                            value: formattedDistance(distanceKm),
-                            icon: "map.fill",
-                            color: .blue
-                        )
-                    }
+                  // Distance Covered
+                  NavigationLink(destination:
+                      DistanceDetailView()
+                          .environmentObject(healthKitManager)
+                  ) {
+                      HealthMetricCard(
+                          title: "Distance Covered",
+                          value: formattedDistance(distanceKm),
+                          icon: "map.fill",
+                          color: .blue
+                      )
+                  }
+
+
                 }
                 .padding(.vertical)
             }

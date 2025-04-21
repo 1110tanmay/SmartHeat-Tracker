@@ -3,6 +3,7 @@ import Charts
 
 struct CaloriesDetailView: View {
     @EnvironmentObject var healthManager: HealthKitManager
+    @State private var timer: Timer?
 
     var body: some View {
         ScrollView {
@@ -12,19 +13,12 @@ struct CaloriesDetailView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
 
-                // Basic chart using latest value
-                if let calories = healthManager.latestCalories {
-                    Chart {
-                        LineMark(
-                            x: .value("Time", "Today"),
-                            y: .value("Calories", calories)
-                        )
-                        .foregroundStyle(Color.purple)
-                    }
-                    .frame(height: 200)
-                    .padding()
+                // Chart or Placeholder
+                if !healthManager.caloriesTrendData.isEmpty {
+                    caloriesChart
+                        .animation(.easeInOut(duration: 0.5), value: healthManager.caloriesTrendData)
                 } else {
-                    Text("Loading calorie data...")
+                    Text("No calorie data available.")
                         .foregroundColor(.gray)
                         .padding()
                 }
@@ -32,7 +26,7 @@ struct CaloriesDetailView: View {
                 // Latest Highlight
                 if let calories = healthManager.latestCalories {
                     VStack {
-                        Text("Today")
+                        Text("Latest: \(currentTime())")
                             .foregroundColor(.white)
                             .fontWeight(.bold)
                         Text("\(Int(calories)) kcal")
@@ -46,16 +40,12 @@ struct CaloriesDetailView: View {
                     .cornerRadius(12)
                 }
 
-                // Insights
-                VStack(alignment: .leading, spacing: 15) {
-                    Text("🧠 Health Insights")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    InsightCard(icon: "flame.fill", color: .purple, text: "You burned 15% more calories than last week!")
-                    InsightCard(icon: "figure.run", color: .orange, text: "Your most active hour was between 2 PM - 3 PM.")
+                // Navigation to Trends Page
+              NavigationLink(destination: TrendsView()) {
+                    Text("Show More Calorie Data")
+                        .foregroundColor(.purple)
+                        .fontWeight(.semibold)
                 }
-                .padding()
 
                 Spacer()
             }
@@ -63,8 +53,67 @@ struct CaloriesDetailView: View {
         }
         .navigationTitle("Calories Burned")
         .onAppear {
+            healthManager.fetchCaloriesTrend()
+            healthManager.fetchLatestCalories()
+            startPolling()
+        }
+        .onDisappear {
+            stopPolling()
+        }
+    }
+
+    // MARK: - Chart
+    private var caloriesChart: some View {
+        Chart {
+            ForEach(healthManager.caloriesTrendData) { point in
+                let isLatest = point.id == healthManager.caloriesTrendData.last?.id
+                let color: Color = isLatest ? .purple : .orange
+
+                LineMark(
+                    x: .value("Time", point.date),
+                    y: .value("Calories", point.calories)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(color)
+
+                PointMark(
+                    x: .value("Time", point.date),
+                    y: .value("Calories", point.calories)
+                )
+                .foregroundStyle(color)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 5)) {
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.hour().minute(), centered: true)
+            }
+        }
+        .chartYAxis {
+            AxisMarks()
+        }
+        .frame(height: 200)
+        .padding()
+    }
+
+    // MARK: - Time Formatter
+    func currentTime() -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: Date())
+    }
+
+    // MARK: - Timer Logic
+    func startPolling() {
+        timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
+            healthManager.fetchCaloriesTrend()
             healthManager.fetchLatestCalories()
         }
+    }
+
+    func stopPolling() {
+        timer?.invalidate()
+        timer = nil
     }
 }
 

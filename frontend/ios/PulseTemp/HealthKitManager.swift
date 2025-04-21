@@ -2,13 +2,6 @@ import Foundation
 import HealthKit
 import Combine
 
-// MARK: - Heart Rate Data Point Struct
-struct HeartRatePoint: Identifiable {
-    let id = UUID()
-    let timestamp: String
-    let bpm: Int
-}
-
 class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
     let healthStore = HKHealthStore()
@@ -103,57 +96,75 @@ class HealthKitManager: ObservableObject {
     }
 
     // MARK: - Fetch Heart Rate Trend (Chart Data)
-    func fetchHeartRateTrend() {
-        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+  func fetchHeartRateTrend() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+
+      let start = Calendar.current.date(byAdding: .minute, value: -30, to: Date()) ?? Date()
+      let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 50, sortDescriptors: [sort]) { _, results, _ in
+          DispatchQueue.main.async {
+              for sample in results as? [HKQuantitySample] ?? [] {
+                  let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
+                  let timestamp = sample.startDate
+                  let point = HeartRatePoint(timestamp: timestamp, bpm: bpm)
+
+                  // ✅ Append only if it's newer than the last timestamp
+                  if let last = self.heartRateData.last {
+                      if point.timestamp > last.timestamp {
+                          self.heartRateData.append(point)
+                      }
+                  } else {
+                      // If list is empty, add first point
+                      self.heartRateData.append(point)
+                  }
+
+                  // ✅ Optional: keep list size under 100
+                  if self.heartRateData.count > 100 {
+                      self.heartRateData.removeFirst()
+                  }
+              }
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
+
+
+  private func timeStringToDate(_ time: String) -> Date {
+      let formatter = DateFormatter()
+      formatter.dateFormat = "h a"
+      formatter.locale = Locale(identifier: "en_US_POSIX")
+      return formatter.date(from: time) ?? Date()
+  }
+
+    // MARK: - Fetch Calories Trend
+    func fetchCaloriesTrend() {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
 
         let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
         let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
         let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
 
-        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 50, sortDescriptors: [sort]) { _, results, _ in
-            var data: [HeartRatePoint] = []
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 100, sortDescriptors: [sort]) { _, results, _ in
+            var data: [CaloriePoint] = []
 
             for sample in results as? [HKQuantitySample] ?? [] {
-                let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
+                let kcal = sample.quantity.doubleValue(for: .kilocalorie())
                 let time = Self.timeFormatter.string(from: sample.startDate)
-                data.append(HeartRatePoint(timestamp: time, bpm: bpm))
+              data.append(CaloriePoint(date: sample.startDate, calories: kcal))
             }
 
             DispatchQueue.main.async {
-                self.heartRateData = data
+                self.caloriesTrendData = data
             }
         }
 
         healthStore.execute(query)
     }
 
-    // MARK: - Stub Trend Fetchers (Temporary Mock Data)
-    func fetchStepsTrend() {
-        stepsTrendData = [
-            StepPoint(timestamp: "9 AM", steps: 1000),
-            StepPoint(timestamp: "10 AM", steps: 1400),
-            StepPoint(timestamp: "11 AM", steps: 1800),
-            StepPoint(timestamp: "12 PM", steps: 2000)
-        ]
-    }
-
-    func fetchCaloriesTrend() {
-        caloriesTrendData = [
-            CaloriePoint(timestamp: "9 AM", calories: 90),
-            CaloriePoint(timestamp: "10 AM", calories: 120),
-            CaloriePoint(timestamp: "11 AM", calories: 150),
-            CaloriePoint(timestamp: "12 PM", calories: 180)
-        ]
-    }
-
-    func fetchDistanceTrend() {
-        distanceTrendData = [
-            DistancePoint(timestamp: "9 AM", distance: 0.6),
-            DistancePoint(timestamp: "10 AM", distance: 1.2),
-            DistancePoint(timestamp: "11 AM", distance: 2.0),
-            DistancePoint(timestamp: "12 PM", distance: 2.8)
-        ]
-    }
 
     // MARK: - Fetch All At Once (used in SummaryView)
     func fetchAllMetrics() {
@@ -162,6 +173,7 @@ class HealthKitManager: ObservableObject {
         fetchLatestCalories()
         fetchLatestDistance()
         fetchHeartRateTrend()
+        fetchCaloriesTrend()
     }
 
     // MARK: - Formatter for Timestamps

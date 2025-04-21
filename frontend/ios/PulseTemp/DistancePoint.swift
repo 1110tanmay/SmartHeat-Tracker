@@ -1,8 +1,8 @@
-//
-//  DistancePoint.swift
-//  PulseTemp
-//
-//  Created by Tanmay Shelar on 4/19/25.
-//
-
 import Foundation
+
+struct DistancePoint: Identifiable, Equatable {
+    let id = UUID()
+    let timestamp: Date
+    var distance: Double
+}
+

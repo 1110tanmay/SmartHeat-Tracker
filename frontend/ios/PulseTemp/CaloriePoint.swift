@@ -2,6 +2,7 @@ import Foundation
 
 struct CaloriePoint: Identifiable, Equatable {
     let id = UUID()
-    let timestamp: String
+    let date: Date
     let calories: Double
 }
+

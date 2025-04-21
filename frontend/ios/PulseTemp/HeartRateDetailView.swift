@@ -8,7 +8,7 @@ struct HeartRateDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                
+
                 // Heart Rate Range
                 VStack {
                     Text("RANGE")
@@ -27,19 +27,18 @@ struct HeartRateDetailView: View {
                     }
                 }
 
-                // Heart Rate Chart
+                // Heart Rate Chart (simplified for compiler)
                 if !healthKitManager.heartRateData.isEmpty {
                     Chart {
                         ForEach(healthKitManager.heartRateData) { point in
+                            let isLatest = point.id == healthKitManager.heartRateData.last?.id
+                            let color: Color = isLatest ? .red : .blue
+
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("BPM", point.bpm)
                             )
-                            .foregroundStyle(
-                                point.id == healthKitManager.heartRateData.last?.id
-                                ? Color.red
-                                : Color.blue
-                            )
+                            .foregroundStyle(color)
                         }
                     }
                     .frame(height: 200)
@@ -67,11 +66,12 @@ struct HeartRateDetailView: View {
                     .cornerRadius(12)
                 }
 
-                Button("Show More Heart Rate Data") {
-                    print("Tapped show more")
+                // Navigation to Trends page (no argument)
+                NavigationLink(destination: TrendsView()) {
+                    Text("Show More Heart Rate Data")
+                        .foregroundColor(.blue)
+                        .fontWeight(.semibold)
                 }
-                .foregroundColor(.blue)
-                .fontWeight(.semibold)
 
                 Spacer()
             }
