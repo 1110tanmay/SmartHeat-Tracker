@@ -2,36 +2,35 @@ import SwiftUI
 import Charts
 
 struct CoreTempDetailView: View {
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
-    
-    // Raw temperature data in Celsius
-    let tempData: [(time: String, temp: Double)] = [
-        ("10:00 PM", 36.5),
-        ("10:10 PM", 36.7),
-        ("10:20 PM", 37.0),
-        ("10:30 PM", 37.2),
-        ("10:40 PM", 37.6),
-        ("10:45 PM", 38.2)
-    ]
 
     // MARK: - Computed Properties
-    var convertedTempData: [(time: String, temp: Double)] {
-        tempData.map { (time, temp) in
-            (time, temperatureUnit == "°F" ? celsiusToFahrenheit(temp) : temp)
+
+    var convertedTempData: [CoreTempPoint] {
+        healthKitManager.coreTempTrendData.map { point in
+            let converted = temperatureUnit == "°F" ? celsiusToFahrenheit(point.temperature) : point.temperature
+            return CoreTempPoint(timestamp: point.timestamp, temperature: converted)
         }
     }
 
     var tempRange: String {
-        guard let min = convertedTempData.map({ $0.temp }).min(),
-              let max = convertedTempData.map({ $0.temp }).max() else {
+        guard let min = convertedTempData.map({ $0.temperature }).min(),
+              let max = convertedTempData.map({ $0.temperature }).max() else {
             return "-"
         }
         return String(format: "%.1f - %.1f%@", min, max, temperatureUnit)
     }
 
     var latestTemp: String {
-        guard let latest = convertedTempData.last else { return "-" }
-        return String(format: "%.1f%@", latest.temp, temperatureUnit)
+        guard let latest = healthKitManager.latestCoreTemp else { return "-" }
+        let temp = temperatureUnit == "°F" ? celsiusToFahrenheit(latest) : latest
+        return String(format: "%.1f%@", temp, temperatureUnit)
+    }
+
+    var latestTimestamp: String {
+        guard let lastPoint = healthKitManager.coreTempTrendData.last else { return "-" }
+        return timeFormatter.string(from: lastPoint.timestamp)
     }
 
     var body: some View {
@@ -49,12 +48,12 @@ struct CoreTempDetailView: View {
 
                 // Temperature graph
                 Chart {
-                    ForEach(convertedTempData, id: \.time) { dataPoint in
+                    ForEach(convertedTempData) { point in
                         LineMark(
-                            x: .value("Time", dataPoint.time),
-                            y: .value("Temperature", dataPoint.temp)
+                            x: .value("Time", point.timestamp),
+                            y: .value("Temperature", point.temperature)
                         )
-                        .foregroundStyle(dataPoint.temp == convertedTempData.last?.temp ? Color.orange : Color.blue)
+                        .foregroundStyle(point.temperature == convertedTempData.last?.temperature ? Color.orange : Color.blue)
                     }
                 }
                 .frame(height: 200)
@@ -62,7 +61,7 @@ struct CoreTempDetailView: View {
 
                 // Latest temperature
                 VStack {
-                    Text("Latest: 10:46 PM")
+                    Text("Latest: \(latestTimestamp)")
                         .foregroundColor(.white)
                         .fontWeight(.bold)
                     Text(latestTemp)
@@ -91,9 +90,15 @@ struct CoreTempDetailView: View {
         .navigationTitle("Core Temperature")
     }
 
-    // MARK: - Conversion
+    // MARK: - Helpers
     func celsiusToFahrenheit(_ celsius: Double) -> Double {
         (celsius * 9/5) + 32
+    }
+
+    private var timeFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
     }
 }
 
