@@ -4,5 +4,6 @@ struct CoreTempPoint: Identifiable {
     let id = UUID()
     let timestamp: Date
     let temperature: Double
+    let heartRate: Double
 }
 

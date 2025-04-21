@@ -43,27 +43,34 @@ class HealthKitManager: ObservableObject {
     }
 
     // MARK: - Fetch Latest Values
-    func fetchLatestHeartRate() {
-        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-        let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
-            guard let sample = results?.first as? HKQuantitySample else { return }
-            let unit = HKUnit.count().unitDivided(by: .minute())
-            DispatchQueue.main.async {
-                let heartRate = sample.quantity.doubleValue(for: unit)
-                self.latestHeartRate = heartRate
+  func fetchLatestHeartRate() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+      
+      let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
+          guard let sample = results?.first as? HKQuantitySample else { return }
+          let unit = HKUnit.count().unitDivided(by: .minute())
+          
+          DispatchQueue.main.async {
+              let heartRate = sample.quantity.doubleValue(for: unit)
+              self.latestHeartRate = heartRate
+              
+              let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
+              self.latestCoreTemp = ct
 
-                let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
-                self.latestCoreTemp = ct
-                self.coreTempTrendData.append(CoreTempPoint(timestamp: Date(), temperature: ct))
+              self.coreTempTrendData.append(
+                  CoreTempPoint(timestamp: Date(), temperature: ct, heartRate: heartRate)
+              )
 
-                if self.coreTempTrendData.count > 60 {
-                    self.coreTempTrendData.removeFirst()
-                }
-            }
-        }
-        healthStore.execute(query)
-    }
+              if self.coreTempTrendData.count > 60 {
+                  self.coreTempTrendData.removeFirst()
+              }
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
 
     func fetchLatestSteps() {
         guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }

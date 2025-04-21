@@ -9,8 +9,15 @@ struct CoreTempDetailView: View {
 
     var convertedTempData: [CoreTempPoint] {
         healthKitManager.coreTempTrendData.map { point in
-            let converted = temperatureUnit == "°F" ? celsiusToFahrenheit(point.temperature) : point.temperature
-            return CoreTempPoint(timestamp: point.timestamp, temperature: converted)
+            let converted = temperatureUnit == "°F"
+                ? celsiusToFahrenheit(point.temperature)
+                : point.temperature
+
+            return CoreTempPoint(
+                timestamp: point.timestamp,
+                temperature: converted,
+                heartRate: point.heartRate
+            )
         }
     }
 
@@ -25,7 +32,7 @@ struct CoreTempDetailView: View {
     var latestTemp: String {
         guard let latest = healthKitManager.latestCoreTemp else { return "-" }
         let temp = temperatureUnit == "°F" ? celsiusToFahrenheit(latest) : latest
-        return String(format: "%.1f%@", temp, temperatureUnit)
+      return "\(temp)\(temperatureUnit)"
     }
 
     var latestTimestamp: String {
@@ -36,7 +43,8 @@ struct CoreTempDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Range display
+
+                // RANGE Display
                 VStack {
                     Text("RANGE")
                         .font(.caption)
@@ -46,20 +54,38 @@ struct CoreTempDetailView: View {
                         .fontWeight(.bold)
                 }
 
-                // Temperature graph
-                Chart {
-                    ForEach(convertedTempData) { point in
-                        LineMark(
-                            x: .value("Time", point.timestamp),
-                            y: .value("Temperature", point.temperature)
-                        )
-                        .foregroundStyle(point.temperature == convertedTempData.last?.temperature ? Color.orange : Color.blue)
-                    }
-                }
-                .frame(height: 200)
-                .padding()
+                // Chart Title
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Estimated from HR")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.leading)
 
-                // Latest temperature
+                    // Temperature Chart
+                    Chart {
+                        ForEach(convertedTempData) { point in
+                            LineMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Temperature", point.temperature)
+                            )
+                            .foregroundStyle(point.temperature == convertedTempData.last?.temperature ? Color.orange : Color.blue)
+
+                            PointMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("Temperature", point.temperature)
+                            )
+                            .annotation(position: .top) {
+                                Text("\(Int(point.heartRate)) BPM")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .frame(height: 200)
+                    .padding(.horizontal)
+                }
+
+                // Latest CT Tile
                 VStack {
                     Text("Latest: \(latestTimestamp)")
                         .foregroundColor(.white)
@@ -74,7 +100,7 @@ struct CoreTempDetailView: View {
                 .background(Color.orange)
                 .cornerRadius(12)
 
-                // Show more button
+                // Show More Button (placeholder)
                 Button(action: {
                     print("Show More Temperature Data tapped")
                 }) {
@@ -91,6 +117,7 @@ struct CoreTempDetailView: View {
     }
 
     // MARK: - Helpers
+
     func celsiusToFahrenheit(_ celsius: Double) -> Double {
         (celsius * 9/5) + 32
     }
