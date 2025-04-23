@@ -3,62 +3,44 @@ import Foundation
 class ECTempCalculator: ObservableObject {
     
     // MARK: - Sigmoid Function Parameters (from Looney et al., 2018)
-    private let A: Double = 41        // Lower asymptote of HR
-    private let K: Double = 152       // Upper asymptote of HR
-    private let Q: Double = 0.06      // Scaling factor
-    private let beta: Double = 0.89   // Growth rate
-    private let M: Double = 37.84     // Midpoint of sigmoid
-    private let v: Double = 0.07      // Shape parameter
+    private let A: Double = 41
+    private let K: Double = 152
+    private let Q: Double = 0.06
+    private let beta: Double = 0.89
+    private let M: Double = 37.84
+    private let v: Double = 0.07
 
     // MARK: - Kalman Filter Variables
-    @Published var estimatedCT: Double = 37.0  // Initial core temperature estimate (°C)
-    private var variance: Double = 0.02        // Initial variance (uncertainty)
-    private var hrObservations: [Double] = []  // Optional HR history (for trend display)
+    @Published var estimatedCT: Double = 37.0  // Initial core temperature (°C)
+    private var variance: Double = 0.01        // Initial variance
+    private var hrObservations: [Double] = []
 
-    // MARK: - Predict HR given a CT (Forward Sigmoid)
+    // MARK: - Sigmoid Forward Mapping (Equation 8)
     private func predictedHR(ct: Double) -> Double {
         let numerator = K - A
         let denominator = pow(1 + Q * exp(-beta * (ct - M)), 1 / v)
         return A + numerator / denominator
     }
 
-    // MARK: - Estimate CT from HR by inverting the sigmoid
-    private func computeCoreTemp(from heartRate: Double) -> Double {
-        guard heartRate >= A && heartRate <= K else {
-            return estimatedCT
-        }
-
-        let term = pow((K - A) / (heartRate - A), v) - 1
-        let logInput = term / Q
-
-        guard logInput > 0 else {
-            print("⚠️ logInput non-positive → fallback to previous CT")
-            return estimatedCT
-        }
-
-        return M - log(logInput) / beta
-    }
-
-    // MARK: - Kalman Filter Update for Smoothing
+    // MARK: - Kalman Filter Update (Equations 2, 4, 5, 6)
     func updateCoreTemp(with heartRate: Double) -> Double {
-        let computedCT = computeCoreTemp(from: heartRate)
         let predictedCT = estimatedCT
-        let predictedVariance = variance + 0.000484  // ← from paper
+        let predictedVariance = variance + 0.000484  // Equation 2
 
         let predictedHRValue = predictedHR(ct: predictedCT)
 
-        var m = (-beta * (K - A) * v * pow(max(predictedHRValue - A, 1), -1 - v)) /
-                pow(1 + Q * exp(-beta * (predictedCT - M)), 1 / v)
+        // Equation 9 - Mapping slope m_t
+        let expTerm = exp(-beta * (predictedCT - M))
+        let mNumerator = 8.1168 * expTerm * pow(0.06 * expTerm + 1, -15.2857)
+        let m = mNumerator / 0.07
 
-        if abs(m) < 1e-6 {
-            m = 1e-6
-        }
+        // Equation 4 - Kalman Gain
+        let kalmanGain = (predictedVariance * m) / (pow(m, 2) * predictedVariance + 356.4544)
 
-        var kalmanGain = (predictedVariance * m) /
-                         (pow(m, 2) * predictedVariance + 356.4544)
-        kalmanGain = min(1, max(0.0001, kalmanGain))
-
+        // Equation 5 - CT update
         estimatedCT = predictedCT + kalmanGain * (heartRate - predictedHRValue)
+
+        // Equation 6 - Variance update
         variance = (1 - kalmanGain * m) * predictedVariance
 
         hrObservations.append(heartRate)
@@ -66,11 +48,11 @@ class ECTempCalculator: ObservableObject {
             hrObservations.removeFirst()
         }
 
-        print("HR: \(heartRate) | Computed CT: \(computedCT) | Final CT: \(estimatedCT) | Kalman Gain: \(kalmanGain)")
+        print("HR: \(heartRate) | Final CT: \(estimatedCT) | Kalman Gain: \(kalmanGain)")
         return estimatedCT
     }
 
-    // MARK: - Optional: Return HR Trend History (if needed)
+    // MARK: - Optional HR History
     func getHRHistory() -> [Double] {
         return hrObservations
     }

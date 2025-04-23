@@ -1,4 +1,3 @@
-
 import SwiftUI
 import Charts
 
@@ -27,13 +26,13 @@ struct CoreTempDetailView: View {
               let max = convertedTempData.map({ $0.temperature }).max() else {
             return "-"
         }
-        return String(format: "%.1f - %.1f%@", min, max, temperatureUnit)
+        return String(format: "%.4f - %.4f%@", min, max, temperatureUnit)
     }
 
     var latestTemp: String {
         guard let latest = healthKitManager.latestCoreTemp else { return "-" }
         let temp = temperatureUnit == "°F" ? celsiusToFahrenheit(latest) : latest
-        return "\(temp)\(temperatureUnit)"
+        return String(format: "%.4f%@", temp, temperatureUnit)
     }
 
     var latestTimestamp: String {
@@ -88,6 +87,16 @@ struct CoreTempDetailView: View {
                         }
                     }
                     .chartYScale(domain: customYDomain)
+                    .chartYAxis {
+                        AxisMarks(position: .trailing) { value in
+                            AxisGridLine()
+                            AxisValueLabel {
+                                if let doubleVal = value.as(Double.self) {
+                                    Text(String(format: "%.4f", doubleVal))
+                                }
+                            }
+                        }
+                    }
                     .frame(height: 200)
                     .padding(.horizontal)
                 }
@@ -133,3 +142,4 @@ struct CoreTempDetailView: View {
         return formatter
     }
 }
+
