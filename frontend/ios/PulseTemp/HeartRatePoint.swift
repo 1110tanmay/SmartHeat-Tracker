@@ -1,8 +1,8 @@
 import Foundation
 
-struct HeartRatePoint: Identifiable {
-    let id = UUID()
-    let timestamp: Date
-    let bpm: Int
+struct HeartRatePoint: Identifiable, Codable {
+    var id = UUID()
+    var timestamp: Date
+    var bpm: Double // ➡️ Double, not Int
 }
 

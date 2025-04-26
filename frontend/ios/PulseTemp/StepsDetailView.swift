@@ -80,6 +80,7 @@ struct StepsDetailView: View {
         }
         .navigationTitle("Steps Walked")
         .onAppear {
+          healthKitManager.fetchStepsTrend()
             startPolling()
         }
         .onDisappear {

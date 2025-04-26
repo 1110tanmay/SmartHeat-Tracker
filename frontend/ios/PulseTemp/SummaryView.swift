@@ -5,9 +5,11 @@ struct SummaryView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
-    @AppStorage("firstName") private var firstName: String = "Tanmay"
+    
+    @State private var firstName: String = "User"
+    @State private var wave = false
 
-    // MARK: - Computed Properties with fallback
+    // MARK: - Computed Properties
     var heartRate: Int {
         Int(healthKitManager.latestHeartRate ?? 75)
     }
@@ -50,10 +52,17 @@ struct SummaryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     // Greeting
-                    Text("\(timeBasedGreeting()), \(firstName) 👋")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal)
+                    HStack(spacing: 4) {    
+                        Text("\(timeBasedGreeting()), \(firstName)")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+
+                        Text("👋")
+                            .font(.title2)
+                            .rotationEffect(.degrees(wave ? 20 : -20))
+                            .animation(Animation.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: wave)
+                    }
+                    .padding(.horizontal)
 
                     // Core Temperature
                     NavigationLink(destination: CoreTempDetailView()) {
@@ -155,6 +164,12 @@ struct SummaryView: View {
             }
             .onAppear {
                 healthKitManager.fetchAllMetrics()
+                if let profile = DatabaseManager.shared.fetchUserProfile() {
+                    self.firstName = profile.name
+                } else {
+                    self.firstName = "User"
+                }
+                wave = true // Start waving animation
             }
         }
     }

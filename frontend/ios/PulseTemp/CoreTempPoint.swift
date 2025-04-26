@@ -1,9 +1,8 @@
 import Foundation
 
-struct CoreTempPoint: Identifiable {
-    let id = UUID()
-    let timestamp: Date
-    let temperature: Double
-    let heartRate: Double
+struct CoreTempPoint: Identifiable, Codable {
+    var id = UUID()
+    var timestamp: Date
+    var temp: Double // (NOT temperature + heartRate separately!)
 }
 

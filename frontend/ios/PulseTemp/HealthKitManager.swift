@@ -43,34 +43,41 @@ class HealthKitManager: ObservableObject {
     }
 
     // MARK: - Fetch Latest Values
-  func fetchLatestHeartRate() {
-      guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
-      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-      
-      let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
-          guard let sample = results?.first as? HKQuantitySample else { return }
-          let unit = HKUnit.count().unitDivided(by: .minute())
-          
-          DispatchQueue.main.async {
-              let heartRate = sample.quantity.doubleValue(for: unit)
-              self.latestHeartRate = heartRate
-              
-              let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
-              self.latestCoreTemp = ct
+    func fetchLatestHeartRate() {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+        
+        let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
+            guard let sample = results?.first as? HKQuantitySample else { return }
+            let unit = HKUnit.count().unitDivided(by: .minute())
+            
+            DispatchQueue.main.async {
+                let heartRate = sample.quantity.doubleValue(for: unit)
+                self.latestHeartRate = heartRate
 
-              self.coreTempTrendData.append(
-                  CoreTempPoint(timestamp: Date(), temperature: ct, heartRate: heartRate)
-              )
+                // ✅ Update heart rate trend with the latest point
+                self.heartRateData.append(
+                    HeartRatePoint(timestamp: Date(), bpm: heartRate)
+                )
+                if self.heartRateData.count > 100 {
+                    self.heartRateData.removeFirst()
+                }
 
-              if self.coreTempTrendData.count > 60 {
-                  self.coreTempTrendData.removeFirst()
-              }
-          }
-      }
+                // Core Temp calculation
+                let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
+                self.latestCoreTemp = ct
 
-      healthStore.execute(query)
-  }
+                self.coreTempTrendData.append(
+                    CoreTempPoint(timestamp: Date(), temp: ct)
+                )
+                if self.coreTempTrendData.count > 60 {
+                    self.coreTempTrendData.removeFirst()
+                }
+            }
+        }
 
+        healthStore.execute(query)
+    }
 
     func fetchLatestSteps() {
         guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
@@ -124,22 +131,9 @@ class HealthKitManager: ObservableObject {
 
         let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 50, sortDescriptors: [sort]) { _, results, _ in
             DispatchQueue.main.async {
-                for sample in results as? [HKQuantitySample] ?? [] {
-                    let bpm = Int(sample.quantity.doubleValue(for: .count().unitDivided(by: .minute())))
-                    let timestamp = sample.startDate
-                    let point = HeartRatePoint(timestamp: timestamp, bpm: bpm)
-
-                    if let last = self.heartRateData.last {
-                        if point.timestamp > last.timestamp {
-                            self.heartRateData.append(point)
-                        }
-                    } else {
-                        self.heartRateData.append(point)
-                    }
-
-                    if self.heartRateData.count > 100 {
-                        self.heartRateData.removeFirst()
-                    }
+                self.heartRateData = (results as? [HKQuantitySample] ?? []).map { sample in
+                    let bpm = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
+                    return HeartRatePoint(timestamp: sample.startDate, bpm: bpm)
                 }
             }
         }
@@ -154,7 +148,7 @@ class HealthKitManager: ObservableObject {
         return formatter.date(from: time) ?? Date()
     }
 
-    // MARK: - Fetch Calories Trend
+    // MARK: - Fetch 6 hrs of historic data in Calories burned, Steps Walked and Distance covered.
     func fetchCaloriesTrend() {
         guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
 
@@ -167,7 +161,6 @@ class HealthKitManager: ObservableObject {
 
             for sample in results as? [HKQuantitySample] ?? [] {
                 let kcal = sample.quantity.doubleValue(for: .kilocalorie())
-                let time = Self.timeFormatter.string(from: sample.startDate)
                 data.append(CaloriePoint(date: sample.startDate, calories: kcal))
             }
 
@@ -179,6 +172,52 @@ class HealthKitManager: ObservableObject {
         healthStore.execute(query)
     }
 
+  func fetchStepsTrend() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+
+      let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
+      let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 100, sortDescriptors: [sort]) { _, results, _ in
+          var data: [StepPoint] = []
+
+          for sample in results as? [HKQuantitySample] ?? [] {
+              let steps = Int(sample.quantity.doubleValue(for: .count()))
+              data.append(StepPoint(timestamp: sample.startDate, steps: steps))
+          }
+
+          DispatchQueue.main.async {
+              self.stepsTrendData = data
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
+  func fetchDistanceTrend() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { return }
+
+      let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
+      let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: 100, sortDescriptors: [sort]) { _, results, _ in
+          var data: [DistancePoint] = []
+
+          for sample in results as? [HKQuantitySample] ?? [] {
+              let meters = sample.quantity.doubleValue(for: .meter())
+              data.append(DistancePoint(timestamp: sample.startDate, distance: meters / 1000.0)) // Stored in km
+          }
+
+          DispatchQueue.main.async {
+              self.distanceTrendData = data
+          }
+      }
+
+      healthStore.execute(query)
+  }
+  
     // MARK: - Fetch All At Once (used in SummaryView)
     func fetchAllMetrics() {
         fetchLatestHeartRate()

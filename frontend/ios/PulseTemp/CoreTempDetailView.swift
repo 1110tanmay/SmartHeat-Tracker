@@ -10,20 +10,19 @@ struct CoreTempDetailView: View {
     var convertedTempData: [CoreTempPoint] {
         healthKitManager.coreTempTrendData.map { point in
             let converted = temperatureUnit == "°F"
-                ? celsiusToFahrenheit(point.temperature)
-                : point.temperature
+                ? celsiusToFahrenheit(point.temp)
+                : point.temp
 
             return CoreTempPoint(
                 timestamp: point.timestamp,
-                temperature: converted,
-                heartRate: point.heartRate
+                temp: converted
             )
         }
     }
 
     var tempRange: String {
-        guard let min = convertedTempData.map({ $0.temperature }).min(),
-              let max = convertedTempData.map({ $0.temperature }).max() else {
+        guard let min = convertedTempData.map({ $0.temp }).min(),
+              let max = convertedTempData.map({ $0.temp }).max() else {
             return "-"
         }
         return String(format: "%.4f - %.4f%@", min, max, temperatureUnit)
@@ -41,7 +40,7 @@ struct CoreTempDetailView: View {
     }
 
     var customYDomain: ClosedRange<Double> {
-        let temps = convertedTempData.map { $0.temperature }
+        let temps = convertedTempData.map { $0.temp }
         guard let min = temps.min(), let max = temps.max() else {
             return 36.0...38.0 // fallback
         }
@@ -76,13 +75,13 @@ struct CoreTempDetailView: View {
                         ForEach(convertedTempData) { point in
                             LineMark(
                                 x: .value("Time", point.timestamp),
-                                y: .value("Temperature", point.temperature)
+                                y: .value("Temperature", point.temp)
                             )
-                            .foregroundStyle(point.temperature == convertedTempData.last?.temperature ? Color.orange : Color.blue)
+                            .foregroundStyle(point.temp == convertedTempData.last?.temp ? Color.orange : Color.blue)
 
                             PointMark(
                                 x: .value("Time", point.timestamp),
-                                y: .value("Temperature", point.temperature)
+                                y: .value("Temperature", point.temp)
                             )
                         }
                     }

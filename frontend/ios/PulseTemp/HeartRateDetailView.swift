@@ -3,70 +3,92 @@ import Charts
 
 struct HeartRateDetailView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
-    @State private var timer: Timer?
+    @State private var refreshTimer: Timer?
+
+    var heartRateRange: String {
+        guard let min = healthKitManager.heartRateData.map({ $0.bpm }).min(),
+              let max = healthKitManager.heartRateData.map({ $0.bpm }).max() else {
+            return "-"
+        }
+        return "\(String(format: "%.0f", min)) - \(String(format: "%.0f", max)) BPM"
+    }
+
+    var latestHeartRate: String {
+        guard let latest = healthKitManager.latestHeartRate else { return "-" }
+        return "\(String(format: "%.0f", latest)) BPM"
+    }
+
+    var latestTimestamp: String {
+        guard let lastPoint = healthKitManager.heartRateData.last else { return "-" }
+        return timeFormatter.string(from: lastPoint.timestamp)
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-
-                // Heart Rate Range
+                
+                // RANGE Display
                 VStack {
                     Text("RANGE")
                         .font(.caption)
                         .foregroundColor(.gray)
-
-                    if let min = healthKitManager.heartRateData.map(\.bpm).min(),
-                       let max = healthKitManager.heartRateData.map(\.bpm).max() {
-                        Text("\(min) - \(max) BPM")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                    } else {
-                        Text("-")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                    }
+                    Text(heartRateRange)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
                 }
 
-                // Heart Rate Chart (simplified for compiler)
-                if !healthKitManager.heartRateData.isEmpty {
+                // Chart Title
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Heart Rate Trend")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .padding(.leading)
+
+                    // Heart Rate Chart
                     Chart {
                         ForEach(healthKitManager.heartRateData) { point in
-                            let isLatest = point.id == healthKitManager.heartRateData.last?.id
-                            let color: Color = isLatest ? .red : .blue
-
                             LineMark(
                                 x: .value("Time", point.timestamp),
                                 y: .value("BPM", point.bpm)
                             )
-                            .foregroundStyle(color)
+                            .foregroundStyle(point.bpm == healthKitManager.heartRateData.last?.bpm ? Color.red : Color.blue)
+
+                            PointMark(
+                                x: .value("Time", point.timestamp),
+                                y: .value("BPM", point.bpm)
+                            )
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .trailing) { value in
+                            AxisGridLine()
+                            AxisValueLabel {
+                                if let bpmValue = value.as(Double.self) {
+                                    Text(String(format: "%.0f", bpmValue))
+                                }
+                            }
                         }
                     }
                     .frame(height: 200)
-                    .padding()
-                } else {
-                    Text("No heart rate data available.")
-                        .foregroundColor(.gray)
-                        .padding()
+                    .padding(.horizontal)
                 }
 
-                // Latest Reading (from live sample)
-                if let bpm = healthKitManager.latestHeartRate {
-                    VStack {
-                        Text("Latest: \(currentTime())")
-                            .foregroundColor(.white)
-                            .fontWeight(.bold)
-                        Text("\(Int(bpm)) BPM")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red)
-                    .cornerRadius(12)
+                // Latest Heart Rate Tile
+                VStack {
+                    Text("Latest: \(latestTimestamp)")
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                    Text(latestHeartRate)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
                 }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.red)
+                .cornerRadius(12)
 
-                // Navigation to Trends page (no argument)
+                // Show More Button
                 NavigationLink(destination: TrendsView()) {
                     Text("Show More Heart Rate Data")
                         .foregroundColor(.blue)
@@ -79,34 +101,29 @@ struct HeartRateDetailView: View {
         }
         .navigationTitle("Heart Rate Details")
         .onAppear {
-            startPolling()
+            healthKitManager.fetchLatestHeartRate() // 🔥 Immediate fetch
+            startTimer()                            // ⏱️ Start 10s auto-refresh
         }
         .onDisappear {
-            stopPolling()
+            stopTimer()                             // 🛑 Stop timer on exit
         }
     }
 
-    // MARK: - Format Current Time
-    func currentTime() -> String {
+    private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
+        formatter.dateFormat = "h:mm a"
+        return formatter
     }
 
-    // MARK: - Timer Logic
-    func startPolling() {
-        healthKitManager.fetchHeartRateTrend()
-        healthKitManager.fetchLatestHeartRate()
-
-        timer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { _ in
-            healthKitManager.fetchHeartRateTrend()
+    private func startTimer() {
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
             healthKitManager.fetchLatestHeartRate()
         }
     }
 
-    func stopPolling() {
-        timer?.invalidate()
-        timer = nil
+    private func stopTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 

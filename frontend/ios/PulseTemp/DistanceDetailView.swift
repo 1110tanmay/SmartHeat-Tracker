@@ -78,6 +78,7 @@ struct DistanceDetailView: View {
         }
         .navigationTitle("Distance Covered")
         .onAppear {
+          healthKitManager.fetchDistanceTrend()
             startPolling()
         }
         .onDisappear {
