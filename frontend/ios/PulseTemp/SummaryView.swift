@@ -3,6 +3,7 @@ import Charts
 
 struct SummaryView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
+    @StateObject private var profileImageManager = ProfileImageManager.shared
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
     
@@ -51,8 +52,9 @@ struct SummaryView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+                    
                     // Greeting
-                    HStack(spacing: 4) {    
+                    HStack(spacing: 4) {
                         Text("\(timeBasedGreeting()), \(firstName)")
                             .font(.title2)
                             .fontWeight(.semibold)
@@ -155,11 +157,18 @@ struct SummaryView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Image("profile_pic")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 36, height: 36)
-                        .clipShape(Circle())
+                    if let image = ProfileImageManager.shared.profileImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 36, height: 36)
+                            .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.crop.circle")
+                            .resizable()
+                            .frame(width: 30, height: 30)
+                            .foregroundColor(.blue)
+                    }
                 }
             }
             .onAppear {
@@ -204,6 +213,7 @@ struct SummaryView: View {
     }
 }
 
+// Supporting struct
 struct TemperatureData: Identifiable {
     let id = UUID()
     let time: String

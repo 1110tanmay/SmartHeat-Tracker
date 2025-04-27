@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ProfileView: View {
     @State private var name: String = ""
@@ -7,11 +8,15 @@ struct ProfileView: View {
     @State private var weight: String = ""
     @State private var height: String = ""
 
-    @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
-    @AppStorage("distanceUnit") private var distanceUnit: String = "km"
-
     @State private var isEditing: Bool = false
     @State private var isDataShared: Bool = false
+
+    @State private var selectedImage: UIImage? = nil
+    @State private var isPickerPresented = false
+    @State private var showResetAlert = false
+
+    @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
+    @AppStorage("distanceUnit") private var distanceUnit: String = "km"
 
     let sexOptions = ["Male", "Female", "Other"]
     let tempUnits = ["°C", "°F"]
@@ -20,27 +25,54 @@ struct ProfileView: View {
     var body: some View {
         NavigationView {
             Form {
-                // 📌 Personal Information Section
+                // 📸 Profile Photo Section
+                Section {
+                    VStack {
+                        if let selectedImage = selectedImage {
+                            Image(uiImage: selectedImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 120, height: 120)
+                                .clipShape(Circle())
+                                .shadow(radius: 5)
+                        } else {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 120, height: 120)
+                                .overlay(
+                                    Text("Add Photo")
+                                        .foregroundColor(.blue)
+                                )
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .onTapGesture {
+                        isPickerPresented = true
+                    }
+                }
+
+                // 📌 Personal Info Section
                 Section(header: Text("Personal Information")) {
                     EditableField(label: "Name", value: $name, isEditing: isEditing)
                     EditableField(label: "Age", value: $age, keyboardType: .numberPad, isEditing: isEditing)
 
                     Picker("Sex", selection: $sex) {
-                        ForEach(sexOptions, id: \.self) { option in
+                        ForEach(sexOptions, id: \ .self) { option in
                             Text(option).tag(option)
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
-                    .disabled(!isEditing) // 📌 Disable picker too
+                    .disabled(!isEditing)
 
                     EditableField(label: "Weight (kg)", value: $weight, keyboardType: .numberPad, isEditing: isEditing)
                     EditableField(label: "Height (cm)", value: $height, keyboardType: .numberPad, isEditing: isEditing)
                 }
 
-                // 📌 Unit Preferences Section
+                // 📌 Units Section
                 Section(header: Text("Unit Preferences")) {
                     Picker("Temperature Unit", selection: $temperatureUnit) {
-                        ForEach(tempUnits, id: \.self) { unit in
+                        ForEach(tempUnits, id: \ .self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -48,7 +80,7 @@ struct ProfileView: View {
                     .disabled(!isEditing)
 
                     Picker("Distance Unit", selection: $distanceUnit) {
-                        ForEach(distanceUnits, id: \.self) { unit in
+                        ForEach(distanceUnits, id: \ .self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -58,31 +90,24 @@ struct ProfileView: View {
 
                 // 📌 Data Sharing Section
                 Section(header: Text("Data Sharing")) {
-                    Button(action: {
-                        isDataShared.toggle()
-                    }) {
-                        Text(isDataShared ? "Data Shared for Research" : "Share My Data for Research")
-                            .foregroundColor(.blue)
-                    }
-                    .disabled(!isEditing)
+                    Toggle("Share My Data for Research", isOn: $isDataShared)
+                        .disabled(!isEditing)
 
                     Button(action: {
-                        resetProfile()
+                        showResetAlert = true
                     }) {
-                        Text("Reset Data")
+                        Text("Reset Profile")
                             .foregroundColor(.red)
                     }
-                    .disabled(!isEditing)
                 }
 
-                // 📌 Save Button
                 if isEditing {
                     Button(action: {
                         saveProfile()
                         isEditing = false
                     }) {
                         Text("Save")
-                            .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                 }
@@ -91,21 +116,29 @@ struct ProfileView: View {
             .toolbar {
                 Button(isEditing ? "Cancel" : "Edit") {
                     isEditing.toggle()
-                    dismissKeyboard()
                 }
             }
             .onAppear {
                 loadProfile()
             }
-            .simultaneousGesture(
-                TapGesture().onEnded { _ in
-                    dismissKeyboard()
-                }
-            ) // 📌 Tap anywhere to dismiss keyboard
+            .sheet(isPresented: $isPickerPresented) {
+                PhotoPicker(selectedImage: $selectedImage)
+            }
+            .alert(isPresented: $showResetAlert) {
+                Alert(
+                    title: Text("Reset Profile"),
+                    message: Text("Are you sure you want to reset your profile?"),
+                    primaryButton: .destructive(Text("Reset")) {
+                        resetProfile()
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
         }
     }
 
-    // 📌 Save Profile to Database
+    // MARK: Save, Load, Reset Functions
+
     func saveProfile() {
         guard let ageInt = Int(age),
               let weightDouble = Double(weight),
@@ -125,12 +158,10 @@ struct ProfileView: View {
         )
 
         DatabaseManager.shared.insertOrUpdateUserProfile(profile)
+        saveProfileImage()
         print("Profile Saved to Database: \(profile)")
-
-        dismissKeyboard()
     }
 
-    // 📌 Load Profile from Database
     func loadProfile() {
         if let profile = DatabaseManager.shared.fetchUserProfile() {
             name = profile.name
@@ -140,33 +171,59 @@ struct ProfileView: View {
             height = "\(profile.height)"
             distanceUnit = profile.distanceUnit
             temperatureUnit = profile.temperatureUnit
-            print("Profile Loaded from Database: \(profile)")
-        } else {
-            print("No saved profile found, using defaults.")
         }
+        loadProfileImage()
     }
 
-    // 📌 Reset Profile to Defaults
     func resetProfile() {
-        name = "John Doe"
-        age = "25"
+        name = ""
+        age = ""
         sex = "Male"
-        weight = "70"
-        height = "175"
+        weight = ""
+        height = ""
         temperatureUnit = "°C"
         distanceUnit = "km"
         isDataShared = false
+        selectedImage = nil
         saveProfile()
-        print("Profile Reset to Defaults and Saved.")
+        deleteProfileImage()
     }
 
-    // 📌 Helper to Dismiss Keyboard
-    func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    // MARK: - Image Saving/Loading Helpers
+
+    func getDocumentsDirectory() -> URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    }
+
+    func saveProfileImage() {
+        guard let selectedImage = selectedImage else { return }
+        if let data = selectedImage.jpegData(compressionQuality: 0.8) {
+            let url = getDocumentsDirectory().appendingPathComponent("profile_photo.png")
+            try? data.write(to: url)
+            print("Profile photo saved.")
+        }
+    }
+
+    func loadProfileImage() {
+        let url = getDocumentsDirectory().appendingPathComponent("profile_photo.png")
+        if FileManager.default.fileExists(atPath: url.path) {
+            if let data = try? Data(contentsOf: url) {
+                selectedImage = UIImage(data: data)
+                print("Profile photo loaded.")
+            }
+        }
+    }
+
+    func deleteProfileImage() {
+        let url = getDocumentsDirectory().appendingPathComponent("profile_photo.png")
+        if FileManager.default.fileExists(atPath: url.path) {
+            try? FileManager.default.removeItem(at: url)
+            print("Profile photo deleted.")
+        }
     }
 }
 
-// 📌 Reusable Editable Field Component
+// MARK: Reusable Editable Field
 struct EditableField: View {
     let label: String
     @Binding var value: String
@@ -179,16 +236,51 @@ struct EditableField: View {
                 .font(.headline)
             TextField(label, text: $value)
                 .keyboardType(keyboardType)
+                .disabled(!isEditing)
                 .multilineTextAlignment(.trailing)
-                .disabled(!isEditing) // 📌 Disable textfield unless editing
         }
     }
 }
 
-// 📌 Preview
-struct ProfileView_Previews: PreviewProvider {
-    static var previews: some View {
-        ProfileView()
+// MARK: Photo Picker using PHPickerViewController
+struct PhotoPicker: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: PhotoPicker
+
+        init(_ parent: PhotoPicker) {
+            self.parent = parent
+        }
+
+      func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+          picker.dismiss(animated: true)
+          guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
+          provider.loadObject(ofClass: UIImage.self) { image, _ in
+              DispatchQueue.main.async {
+                  if let uiImage = image as? UIImage {
+                      self.parent.selectedImage = uiImage
+                      ProfileImageManager.shared.save(image: uiImage) // 📌 Save immediately after picking!
+                  }
+              }
+          }
+      }
+
     }
 }
 

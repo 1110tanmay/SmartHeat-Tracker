@@ -2,197 +2,150 @@ import SwiftUI
 import Charts
 
 struct TrendsView: View {
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
-    
-    @State private var selectedTimeframe: String = "Week"
-    let timeframes = ["Day", "Week", "Month", "Year"]
 
-    // MARK: - Mock Data
-    let heartRateTrendData: [(date: String, bpm: Int)] = [
-        ("Mon", 72), ("Tue", 75), ("Wed", 74),
-        ("Thu", 73), ("Fri", 70), ("Sat", 76), ("Sun", 78)
-    ]
-    
-    let coreTempTrendData: [(date: String, temp: Double)] = [
-        ("Mon", 36.7), ("Tue", 36.8), ("Wed", 37.0),
-        ("Thu", 36.9), ("Fri", 36.6), ("Sat", 37.1), ("Sun", 37.2)
-    ]
-    
-    let stepsTrendData: [(date: String, steps: Int)] = [
-        ("Mon", 4500), ("Tue", 5000), ("Wed", 5500),
-        ("Thu", 6000), ("Fri", 6200), ("Sat", 7000), ("Sun", 7500)
-    ]
+    @State private var selectedTimeframe: Timeframe = .day
 
-    let caloriesTrendData: [(date: String, calories: Int)] = [
-        ("Mon", 300), ("Tue", 320), ("Wed", 350),
-        ("Thu", 370), ("Fri", 400), ("Sat", 420), ("Sun", 450)
-    ]
-    
-    let distanceTrendData: [(date: String, distance: Double)] = [
-        ("Mon", 2.1), ("Tue", 2.3), ("Wed", 2.5),
-        ("Thu", 2.7), ("Fri", 3.0), ("Sat", 3.4), ("Sun", 3.8)
-    ]
+    enum Timeframe: String, CaseIterable, Identifiable {
+        case day = "Day"
+        case week = "Week"
+        case month = "Month"
+        case year = "Year"
 
-    @State private var insights: [String] = []
+        var id: String { self.rawValue }
 
-    // MARK: - Computed Properties
-    var convertedTempData: [(String, Double)] {
-        coreTempTrendData.map { ($0.date, temperatureUnit == "°F" ? celsiusToFahrenheit($0.temp) : $0.temp) }
+        var calendarComponent: Calendar.Component {
+            switch self {
+            case .day: return .day
+            case .week: return .weekOfYear
+            case .month: return .month
+            case .year: return .year
+            }
+        }
     }
 
-    var convertedDistanceData: [(String, Double)] {
-        distanceTrendData.map { ($0.date, distanceUnit == "miles" ? kmToMiles($0.distance) : $0.distance) }
-    }
-
-    // MARK: - Body
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
-                    
                     // Timeframe Picker
                     Picker("Timeframe", selection: $selectedTimeframe) {
-                        ForEach(timeframes, id: \.self) { timeframe in
-                            Text(timeframe).tag(timeframe)
+                        ForEach(Timeframe.allCases) { timeframe in
+                            Text(timeframe.rawValue).tag(timeframe)
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
                     .padding()
-                    .onChange(of: selectedTimeframe) { _ in updateInsights() }
 
-                    // Charts
-                    TrendChart(
-                        title: "Core Temperature Trends (\(temperatureUnit))",
-                        color: .orange,
-                        data: convertedTempData
-                    )
+                    Group {
+                        // Core Temperature
+                        if !filteredCoreTemp.isEmpty {
+                            TrendChart(title: "Core Temperature Trends (°C)", color: .orange, data: filteredCoreTemp.map { ($0.timestamp, $0.temp) })
+                        } else {
+                            NoDataView(title: "Core Temperature")
+                        }
 
-                    TrendChart(
-                        title: "Heart Rate Trends (\(selectedTimeframe))",
-                        color: .red,
-                        data: heartRateTrendData.map { ($0.date, Double($0.bpm)) }
-                    )
+                        // Heart Rate
+                        if !filteredHeartRate.isEmpty {
+                            TrendChart(title: "Heart Rate Trends (\(selectedTimeframe.rawValue))", color: .red, data: filteredHeartRate.map { ($0.timestamp, Double($0.bpm)) })
+                        } else {
+                            NoDataView(title: "Heart Rate")
+                        }
 
-                    TrendChart(
-                        title: "Steps Trends (\(selectedTimeframe))",
-                        color: .blue,
-                        data: stepsTrendData.map { ($0.date, Double($0.steps)) }
-                    )
+                        // Steps
+                        if !filteredSteps.isEmpty {
+                            TrendChart(title: "Steps Trends (\(selectedTimeframe.rawValue))", color: .blue, data: filteredSteps.map { ($0.timestamp, Double($0.steps)) })
+                        } else {
+                            NoDataView(title: "Steps")
+                        }
 
-                    TrendChart(
-                        title: "Calories Burned Trends (\(selectedTimeframe))",
-                        color: .purple,
-                        data: caloriesTrendData.map { ($0.date, Double($0.calories)) }
-                    )
+                        // Calories
+                        if !filteredCalories.isEmpty {
+                            TrendChart(title: "Calories Burned Trends (\(selectedTimeframe.rawValue))", color: .purple, data: filteredCalories.map { ($0.timestamp, $0.calories) })
+                        } else {
+                            NoDataView(title: "Calories")
+                        }
 
-                    TrendChart(
-                        title: "Distance Covered Trends (\(distanceUnit))",
-                        color: .green,
-                        data: convertedDistanceData
-                    )
-
-                    // Health Insights
-                    VStack(alignment: .leading, spacing: 15) {
-                        Text("🧠 Health Insights")
-                            .font(.title2)
-                            .fontWeight(.bold)
-
-                        ForEach(insights, id: \.self) { insight in
-                            InsightCard(icon: "lightbulb.fill", color: .blue, text: insight)
+                        // Distance
+                        if !filteredDistance.isEmpty {
+                            TrendChart(title: "Distance Covered Trends (\(distanceUnit))", color: .green, data: filteredDistance.map { ($0.timestamp, $0.distance) })
+                        } else {
+                            NoDataView(title: "Distance")
                         }
                     }
-                    .padding()
 
                     Spacer()
                 }
                 .padding()
-                .onAppear { updateInsights() }
             }
             .navigationTitle("Trends")
-        }
-    }
-
-    // MARK: - Update Insights
-    func updateInsights() {
-        insights.removeAll()
-        
-        // Core Temp Insight
-        if let first = coreTempTrendData.first?.temp,
-           let last = coreTempTrendData.last?.temp {
-            let f = temperatureUnit == "°F" ? celsiusToFahrenheit(first) : first
-            let l = temperatureUnit == "°F" ? celsiusToFahrenheit(last) : last
-            let delta = l - f
-            if delta < 0 {
-                insights.append("Your core temperature dropped by \(abs(delta).formatted(.number.precision(.fractionLength(1))))\(temperatureUnit) this \(selectedTimeframe).")
-            } else {
-                insights.append("Your core temperature increased by \(delta.formatted(.number.precision(.fractionLength(1))))\(temperatureUnit) this \(selectedTimeframe).")
+            .onAppear {
+                healthKitManager.fetchHistoricalHeartRate()
+                healthKitManager.fetchHistoricalSteps()
+                healthKitManager.fetchHistoricalCalories()
+                healthKitManager.fetchHistoricalDistance()
+                healthKitManager.fetchHistoricalCoreTemp()
             }
-        }
-
-        // Heart Rate Insight
-        if let first = heartRateTrendData.first?.bpm,
-           let last = heartRateTrendData.last?.bpm {
-            let change = last - first
-            if change < 0 {
-                insights.append("Your heart rate dropped by \(abs(change)) BPM this \(selectedTimeframe).")
-            } else {
-                insights.append("Your heart rate increased by \(change) BPM this \(selectedTimeframe).")
-            }
-        }
-
-        // Steps Insight
-        if let first = stepsTrendData.first?.steps,
-           let last = stepsTrendData.last?.steps {
-            let change = last - first
-            if change > 500 {
-                insights.append("Great job! You walked \(change) more steps this \(selectedTimeframe).")
-            } else {
-                insights.append("Try increasing your daily steps for better health.")
-            }
-        }
-
-        // Calories Insight
-        if let first = caloriesTrendData.first?.calories,
-           let last = caloriesTrendData.last?.calories {
-            let change = last - first
-            if change > 50 {
-                insights.append("You burned \(change) more calories this \(selectedTimeframe). Keep it up!")
-            } else {
-                insights.append("Consider increasing your activity to burn more calories.")
-            }
-        }
-
-        // Distance Insight
-        if let first = distanceTrendData.first?.distance,
-           let last = distanceTrendData.last?.distance {
-            let f = distanceUnit == "miles" ? kmToMiles(first) : first
-            let l = distanceUnit == "miles" ? kmToMiles(last) : last
-            let delta = l - f
-            if delta > 0.5 {
-                insights.append("You covered \(delta.formatted(.number.precision(.fractionLength(2)))) \(distanceUnit) more this \(selectedTimeframe).")
-            } else {
-                insights.append("Try to increase your distance for better endurance.")
+            .onChange(of: selectedTimeframe) { _ in
+                // No need to fetch again on change, just filter the already available data
+                filterAllData()
             }
         }
     }
 
-    // MARK: - Helpers
-    func celsiusToFahrenheit(_ c: Double) -> Double {
-        (c * 9/5) + 32
+    // MARK: - Filtering Logic
+    private func isWithinSelectedTimeframe(_ date: Date) -> Bool {
+        let calendar = Calendar.current
+        switch selectedTimeframe {
+        case .day:
+            return calendar.isDateInToday(date)
+        case .week:
+            return calendar.isDate(date, equalTo: Date(), toGranularity: .weekOfYear)
+        case .month:
+            return calendar.isDate(date, equalTo: Date(), toGranularity: .month)
+        case .year:
+            return calendar.isDate(date, equalTo: Date(), toGranularity: .year)
+        }
     }
 
-    func kmToMiles(_ km: Double) -> Double {
-        km * 0.621371
+    private var filteredCoreTemp: [CoreTempPoint] {
+        healthKitManager.historicalCoreTemp.filter { isWithinSelectedTimeframe($0.timestamp) }
+    }
+
+    private var filteredHeartRate: [HeartRatePoint] {
+        healthKitManager.historicalHeartRate.filter { isWithinSelectedTimeframe($0.timestamp) }
+    }
+
+    private var filteredSteps: [StepPoint] {
+        healthKitManager.historicalSteps.filter { isWithinSelectedTimeframe($0.timestamp) }
+    }
+
+    private var filteredCalories: [CaloriePoint] {
+        healthKitManager.historicalCalories.filter { isWithinSelectedTimeframe($0.timestamp) }
+    }
+
+    private var filteredDistance: [DistancePoint] {
+        healthKitManager.historicalDistance.filter { isWithinSelectedTimeframe($0.timestamp) }
+    }
+
+    private func filterAllData() {
+        // Just trigger recomputation when timeframe changes
+        _ = filteredCoreTemp
+        _ = filteredHeartRate
+        _ = filteredSteps
+        _ = filteredCalories
+        _ = filteredDistance
     }
 }
 
-// MARK: - Reusable TrendChart View
+// MARK: - TrendChart Component
 struct TrendChart: View {
     let title: String
     let color: Color
-    let data: [(String, Double)]
-    
+    let data: [(Date, Double)]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
@@ -200,9 +153,9 @@ struct TrendChart: View {
                 .padding(.leading)
 
             Chart {
-                ForEach(data, id: \.0) { point in
+                ForEach(Array(data.enumerated()), id: \.offset) { index, point in
                     LineMark(
-                        x: .value("Date", point.0),
+                        x: .value("Time", point.0),
                         y: .value("Value", point.1)
                     )
                     .foregroundStyle(color)
@@ -210,6 +163,19 @@ struct TrendChart: View {
             }
             .frame(height: 200)
             .padding(.horizontal)
+        }
+    }
+}
+
+// MARK: - NoData View
+struct NoDataView: View {
+    let title: String
+
+    var body: some View {
+        VStack {
+            Text("No \(title) data available.")
+                .foregroundColor(.gray)
+                .padding()
         }
     }
 }

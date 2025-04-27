@@ -41,7 +41,7 @@ struct CaloriesDetailView: View {
                 }
 
                 // Navigation to Trends Page
-              NavigationLink(destination: TrendsView()) {
+                NavigationLink(destination: TrendsView()) {
                     Text("Show More Calorie Data")
                         .foregroundColor(.purple)
                         .fontWeight(.semibold)
@@ -70,14 +70,14 @@ struct CaloriesDetailView: View {
                 let color: Color = isLatest ? .purple : .orange
 
                 LineMark(
-                    x: .value("Time", point.date),
+                    x: .value("Time", point.timestamp),
                     y: .value("Calories", point.calories)
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(color)
 
                 PointMark(
-                    x: .value("Time", point.date),
+                    x: .value("Time", point.timestamp),
                     y: .value("Calories", point.calories)
                 )
                 .foregroundStyle(color)

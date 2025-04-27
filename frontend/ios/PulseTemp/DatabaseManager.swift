@@ -32,27 +32,54 @@ class DatabaseManager {
     private let distanceUnit = SQLiteExpression<String>("distanceUnit")
     private let temperatureUnit = SQLiteExpression<String>("temperatureUnit")
 
-  private init() {
-      do {
-          // 📌 Build the path inside Application Support Directory
-          let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+    // CoreTempHistory table and columns
+    private let coreTempHistory = Table("CoreTempHistory")
+    private let coreTempTimestamp = SQLiteExpression<Date>("timestamp")
+    private let coreTempValue = SQLiteExpression<Double>("temp")
 
-          // 📌 Ensure Application Support directory exists
-          if !FileManager.default.fileExists(atPath: appSupportURL.path) {
-              try FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
-          }
+    // New: HeartRateHistory table and columns
+    private let heartRateHistory = Table("HeartRateHistory")
+    private let heartRateTimestamp = SQLiteExpression<Date>("timestamp")
+    private let heartRateBPM = SQLiteExpression<Double>("bpm")
 
-          let dbPath = appSupportURL.appendingPathComponent("workouts.sqlite").path
+    // New: StepsHistory table and columns
+    private let stepsHistory = Table("StepsHistory")
+    private let stepsTimestamp = SQLiteExpression<Date>("timestamp")
+    private let stepsCount = SQLiteExpression<Int>("steps")
 
-          db = try Connection(dbPath)
+    // New: CaloriesHistory table and columns
+    private let caloriesHistory = Table("CaloriesHistory")
+    private let caloriesTimestamp = SQLiteExpression<Date>("timestamp")
+    private let caloriesBurned = SQLiteExpression<Double>("calories")
 
-          try createWorkoutSessionTable()
-          try createUserProfileTable()
-      } catch {
-          fatalError("Database connection failed: \(error)")
-      }
-  }
+    // New: DistanceHistory table and columns
+    private let distanceHistory = Table("DistanceHistory")
+    private let distanceTimestamp = SQLiteExpression<Date>("timestamp")
+    private let distanceCovered = SQLiteExpression<Double>("distance")
 
+    private init() {
+        do {
+            // 📌 Build the path inside Application Support Directory
+            let appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+
+            if !FileManager.default.fileExists(atPath: appSupportURL.path) {
+                try FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
+            }
+
+            let dbPath = appSupportURL.appendingPathComponent("workouts.sqlite").path
+            db = try Connection(dbPath)
+
+            try createWorkoutSessionTable()
+            try createUserProfileTable()
+            try createCoreTempHistoryTable()
+            try createHeartRateHistoryTable()
+            try createStepsHistoryTable()
+            try createCaloriesHistoryTable()
+            try createDistanceHistoryTable()
+        } catch {
+            fatalError("Database connection failed: \(error)")
+        }
+    }
 
     private func createWorkoutSessionTable() throws {
         try db.run(workoutSessions.create(ifNotExists: true) { table in
@@ -79,6 +106,41 @@ class DatabaseManager {
             table.column(weight)
             table.column(distanceUnit)
             table.column(temperatureUnit)
+        })
+    }
+
+    private func createCoreTempHistoryTable() throws {
+        try db.run(coreTempHistory.create(ifNotExists: true) { table in
+            table.column(coreTempTimestamp, primaryKey: true)
+            table.column(coreTempValue)
+        })
+    }
+
+    private func createHeartRateHistoryTable() throws {
+        try db.run(heartRateHistory.create(ifNotExists: true) { table in
+            table.column(heartRateTimestamp, primaryKey: true)
+            table.column(heartRateBPM)
+        })
+    }
+
+    private func createStepsHistoryTable() throws {
+        try db.run(stepsHistory.create(ifNotExists: true) { table in
+            table.column(stepsTimestamp, primaryKey: true)
+            table.column(stepsCount)
+        })
+    }
+
+    private func createCaloriesHistoryTable() throws {
+        try db.run(caloriesHistory.create(ifNotExists: true) { table in
+            table.column(caloriesTimestamp, primaryKey: true)
+            table.column(caloriesBurned)
+        })
+    }
+
+    private func createDistanceHistoryTable() throws {
+        try db.run(distanceHistory.create(ifNotExists: true) { table in
+            table.column(distanceTimestamp, primaryKey: true)
+            table.column(distanceCovered)
         })
     }
 
@@ -134,7 +196,6 @@ class DatabaseManager {
     func insertOrUpdateUserProfile(_ profile: UserProfile) {
         do {
             if try db.scalar(userProfile.filter(userId == profile.id).count) > 0 {
-                // Update existing profile
                 let existing = userProfile.filter(userId == profile.id)
                 try db.run(existing.update(
                     name <- profile.name,
@@ -146,7 +207,6 @@ class DatabaseManager {
                     temperatureUnit <- profile.temperatureUnit
                 ))
             } else {
-                // Insert new profile
                 try db.run(userProfile.insert(
                     userId <- profile.id,
                     name <- profile.name,
@@ -182,5 +242,129 @@ class DatabaseManager {
         }
         return nil
     }
+
+    // MARK: - Core Temp Functions
+    func insertCoreTempPoint(_ point: CoreTempPoint) {
+        do {
+            let insert = coreTempHistory.insert(
+                coreTempTimestamp <- point.timestamp,
+                coreTempValue <- point.temp
+            )
+            try db.run(insert)
+        } catch {
+            print("Failed to insert CoreTempPoint: \(error)")
+        }
+    }
+
+    func fetchAllCoreTempPoints() -> [CoreTempPoint] {
+        do {
+            let rows = try db.prepare(coreTempHistory.order(coreTempTimestamp.asc))
+            return rows.map { row in
+                CoreTempPoint(timestamp: row[coreTempTimestamp], temp: row[coreTempValue])
+            }
+        } catch {
+            print("Failed to fetch CoreTempPoints: \(error)")
+            return []
+        }
+    }
+
+    // MARK: - New Insert Functions for HeartRate, Steps, Calories, Distance
+    func insertHeartRatePoint(_ point: HeartRatePoint) {
+        do {
+            let insert = heartRateHistory.insert(
+                heartRateTimestamp <- point.timestamp,
+                heartRateBPM <- point.bpm
+            )
+            try db.run(insert)
+        } catch {
+            print("Failed to insert HeartRatePoint: \(error)")
+        }
+    }
+
+    func insertStepPoint(_ point: StepPoint) {
+        do {
+            let insert = stepsHistory.insert(
+                stepsTimestamp <- point.timestamp,
+                stepsCount <- point.steps
+            )
+            try db.run(insert)
+        } catch {
+            print("Failed to insert StepPoint: \(error)")
+        }
+    }
+
+    func insertCaloriePoint(_ point: CaloriePoint) {
+        do {
+            let insert = caloriesHistory.insert(
+                caloriesTimestamp <- point.timestamp,
+                caloriesBurned <- point.calories
+            )
+            try db.run(insert)
+        } catch {
+            print("Failed to insert CaloriePoint: \(error)")
+        }
+    }
+
+    func insertDistancePoint(_ point: DistancePoint) {
+        do {
+            let insert = distanceHistory.insert(
+                distanceTimestamp <- point.timestamp,
+                distanceCovered <- point.distance
+            )
+            try db.run(insert)
+        } catch {
+            print("Failed to insert DistancePoint: \(error)")
+        }
+    }
+
+    // MARK: - New Fetch Functions for HeartRate, Steps, Calories, Distance
+    func fetchAllHeartRatePoints() -> [HeartRatePoint] {
+        do {
+            let rows = try db.prepare(heartRateHistory.order(heartRateTimestamp.asc))
+            return rows.map { row in
+                HeartRatePoint(timestamp: row[heartRateTimestamp], bpm: row[heartRateBPM])
+            }
+        } catch {
+            print("Failed to fetch HeartRatePoints: \(error)")
+            return []
+        }
+    }
+
+    func fetchAllStepPoints() -> [StepPoint] {
+        do {
+            let rows = try db.prepare(stepsHistory.order(stepsTimestamp.asc))
+            return rows.map { row in
+                StepPoint(timestamp: row[stepsTimestamp], steps: row[stepsCount])
+            }
+        } catch {
+            print("Failed to fetch StepPoints: \(error)")
+            return []
+        }
+    }
+
+    func fetchAllCaloriePoints() -> [CaloriePoint] {
+        do {
+            let rows = try db.prepare(caloriesHistory.order(caloriesTimestamp.asc))
+            return rows.map { row in
+                CaloriePoint(timestamp: row[caloriesTimestamp], calories: row[caloriesBurned])
+            }
+        } catch {
+            print("Failed to fetch CaloriePoints: \(error)")
+            return []
+        }
+    }
+
+    func fetchAllDistancePoints() -> [DistancePoint] {
+        do {
+            let rows = try db.prepare(distanceHistory.order(distanceTimestamp.asc))
+            return rows.map { row in
+                DistancePoint(timestamp: row[distanceTimestamp], distance: row[distanceCovered])
+            }
+        } catch {
+            print("Failed to fetch DistancePoints: \(error)")
+            return []
+        }
+    }
+  
 }
 

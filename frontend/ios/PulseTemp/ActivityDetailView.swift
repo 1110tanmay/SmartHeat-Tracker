@@ -22,7 +22,6 @@ struct ActivityDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-
                 // 🢍 Steps Walked
                 VStack {
                     Text("Steps Walked")
@@ -57,7 +56,7 @@ struct ActivityDetailView: View {
                 Chart {
                     ForEach(healthKitManager.caloriesTrendData) { point in
                         LineMark(
-                          x: .value("Time", point.date),
+                            x: .value("Time", point.timestamp),
                             y: .value("Calories", point.calories)
                         )
                         .interpolationMethod(.monotone)
@@ -129,8 +128,8 @@ struct ActivityDetailView: View {
     func fetchLiveSteps() {
         healthKitManager.fetchLatestSteps()
         if let steps = healthKitManager.latestSteps {
-          let now = Date()
-          let point = StepPoint(timestamp: now, steps: steps)
+            let now = Date()
+            let point = StepPoint(timestamp: now, steps: steps)
             if healthKitManager.stepsTrendData.last?.timestamp != point.timestamp {
                 healthKitManager.stepsTrendData.append(point)
             }
@@ -140,22 +139,23 @@ struct ActivityDetailView: View {
     func fetchLiveCalories() {
         healthKitManager.fetchLatestCalories()
         if let calories = healthKitManager.latestCalories {
-          let now = Date()
-          let point = CaloriePoint(date: now, calories: calories)
-          if healthKitManager.caloriesTrendData.last?.date != point.date {
-              healthKitManager.caloriesTrendData.append(point)
-          }
+            let now = Date()
+            let point = CaloriePoint(timestamp: now, calories: calories)
+            if healthKitManager.caloriesTrendData.last?.timestamp != point.timestamp {
+                healthKitManager.caloriesTrendData.append(point)
             }
         }
+    }
 
     func fetchLiveDistance() {
         healthKitManager.fetchLatestDistance()
         if let distance = healthKitManager.latestDistance {
-          let now = Date()
-          let point = DistancePoint(timestamp: now, distance: distance)
+            let now = Date()
+            let point = DistancePoint(timestamp: now, distance: distance)
             if healthKitManager.distanceTrendData.last?.timestamp != point.timestamp {
                 healthKitManager.distanceTrendData.append(point)
             }
         }
     }
 }
+

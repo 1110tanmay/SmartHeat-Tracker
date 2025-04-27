@@ -1,8 +1,8 @@
 import Foundation
 
-struct CaloriePoint: Identifiable, Equatable {
+struct CaloriePoint: Identifiable, Codable, Equatable {
     let id = UUID()
-    let date: Date
-    let calories: Double
+    let timestamp: Date
+    var calories: Double
 }
 
