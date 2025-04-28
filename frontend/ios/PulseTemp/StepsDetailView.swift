@@ -67,13 +67,6 @@ struct StepsDetailView: View {
                     .cornerRadius(12)
                 }
 
-                // Navigation to Trends Page
-                NavigationLink(destination: TrendsView()) {
-                    Text("Show More Step Data")
-                        .foregroundColor(.green)
-                        .fontWeight(.semibold)
-                }
-
                 Spacer()
             }
             .padding()
