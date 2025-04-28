@@ -218,6 +218,11 @@ class HealthKitManager: ObservableObject {
         fetchCaloriesTrend()
         fetchStepsTrend()
         fetchDistanceTrend()
+      // 🔥 Historical Syncs
+         syncHistoricalHeartRateAndCoreTemp()
+         syncHistoricalSteps()
+      syncHistoricalCalories()
+      syncHistoricalDistance()
     }
 
     // MARK: - Fetch Long-Term Historical Metrics (for TrendsView)
@@ -240,5 +245,146 @@ class HealthKitManager: ObservableObject {
     func fetchHistoricalCoreTemp() {
         self.historicalCoreTemp = DatabaseManager.shared.fetchAllCoreTempPoints()
     }
+  // MARK: - Historical Sync for Heart Rate and Core Temp
+
+  func syncHistoricalHeartRateAndCoreTemp() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+
+      let now = Date()
+      let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+
+      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, results, error in
+          if let error = error {
+              print("Failed to fetch historical heart rate samples: \(error)")
+              return
+          }
+
+          let samples = results as? [HKQuantitySample] ?? []
+
+          // Process in background to avoid blocking UI
+          DispatchQueue.global(qos: .background).async {
+              for sample in samples {
+                  let bpm = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
+                  let timestamp = sample.startDate
+
+                  // Save Heart Rate Point
+                  let heartRatePoint = HeartRatePoint(timestamp: timestamp, bpm: bpm)
+                  DatabaseManager.shared.insertHeartRatePoint(heartRatePoint)
+
+                  // Calculate and Save Core Temp Point
+                  let calculatedCoreTemp = self.ecTempCalculator.updateCoreTemp(with: bpm)
+                  let coreTempPoint = CoreTempPoint(timestamp: timestamp, temp: calculatedCoreTemp)
+                  DatabaseManager.shared.insertCoreTempPoint(coreTempPoint)
+              }
+              print("✅ Historical Heart Rate and Core Temp sync completed: \(samples.count) samples.")
+          }
+      }
+
+      healthStore.execute(query)
+  }
+  // MARK: - Historical Sync for Steps
+
+  func syncHistoricalSteps() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+
+      let now = Date()
+      let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+
+      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, results, error in
+          if let error = error {
+              print("Failed to fetch historical step samples: \(error)")
+              return
+          }
+
+          let samples = results as? [HKQuantitySample] ?? []
+
+          DispatchQueue.global(qos: .background).async {
+              for sample in samples {
+                  let steps = Int(sample.quantity.doubleValue(for: .count()))
+                  let timestamp = sample.startDate
+
+                  let stepPoint = StepPoint(timestamp: timestamp, steps: steps)
+                  DatabaseManager.shared.insertStepPoint(stepPoint)
+              }
+              print("✅ Historical Steps sync completed: \(samples.count) samples.")
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
+  // MARK: - Historical Sync for Calories Burned
+
+  func syncHistoricalCalories() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
+
+      let now = Date()
+      let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+
+      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, results, error in
+          if let error = error {
+              print("Failed to fetch historical calorie samples: \(error)")
+              return
+          }
+
+          let samples = results as? [HKQuantitySample] ?? []
+
+          DispatchQueue.global(qos: .background).async {
+              for sample in samples {
+                  let calories = sample.quantity.doubleValue(for: .kilocalorie())
+                  let timestamp = sample.startDate
+
+                  let caloriePoint = CaloriePoint(timestamp: timestamp, calories: calories)
+                  DatabaseManager.shared.insertCaloriePoint(caloriePoint)
+              }
+              print("✅ Historical Calories sync completed: \(samples.count) samples.")
+          }
+      }
+
+      healthStore.execute(query)
+  }
+  // MARK: - Historical Sync for Distance Covered
+
+  func syncHistoricalDistance() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { return }
+
+      let now = Date()
+      let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+
+      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+      let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, results, error in
+          if let error = error {
+              print("Failed to fetch historical distance samples: \(error)")
+              return
+          }
+
+          let samples = results as? [HKQuantitySample] ?? []
+
+          DispatchQueue.global(qos: .background).async {
+              for sample in samples {
+                  let distanceKm = sample.quantity.doubleValue(for: .meter()) / 1000.0
+                  let timestamp = sample.startDate
+
+                  let distancePoint = DistancePoint(timestamp: timestamp, distance: distanceKm)
+                  DatabaseManager.shared.insertDistancePoint(distancePoint)
+              }
+              print("✅ Historical Distance sync completed: \(samples.count) samples.")
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
 }
 
