@@ -87,14 +87,7 @@ struct HeartRateDetailView: View {
                 .padding()
                 .background(Color.red)
                 .cornerRadius(12)
-
-                // Show More Button
-                NavigationLink(destination: TrendsView()) {
-                    Text("Show More Heart Rate Data")
-                        .foregroundColor(.blue)
-                        .fontWeight(.semibold)
-                }
-
+              
                 Spacer()
             }
             .padding()
