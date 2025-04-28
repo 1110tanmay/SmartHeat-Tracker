@@ -40,13 +40,6 @@ struct CaloriesDetailView: View {
                     .cornerRadius(12)
                 }
 
-                // Navigation to Trends Page
-                NavigationLink(destination: TrendsView()) {
-                    Text("Show More Calorie Data")
-                        .foregroundColor(.purple)
-                        .fontWeight(.semibold)
-                }
-
                 Spacer()
             }
             .padding()
