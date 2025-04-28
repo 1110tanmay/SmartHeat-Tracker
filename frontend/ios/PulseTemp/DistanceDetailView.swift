@@ -72,12 +72,6 @@ struct DistanceDetailView: View {
                     .background(Color.blue)
                     .cornerRadius(12)
 
-                    // Navigation to Trends Page
-                    NavigationLink(destination: TrendsView()) {
-                        Text("Show More Distance Data")
-                            .foregroundColor(.blue)
-                            .fontWeight(.semibold)
-                    }
                 }
 
                 Spacer()
