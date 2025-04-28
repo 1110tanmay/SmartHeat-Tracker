@@ -34,7 +34,7 @@ struct DistanceDetailView: View {
                     let totalDistanceText = String(format: "%.2f %@", latestDistance, distanceUnit)
 
                     // Title
-                    Text("Distance Covered Details")
+                    Text("Today's Distance Covered:")
                         .font(.largeTitle)
                         .fontWeight(.bold)
 

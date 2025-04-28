@@ -9,7 +9,7 @@ struct CaloriesDetailView: View {
         ScrollView {
             VStack(spacing: 20) {
                 // Title
-                Text("Calories Burned Details")
+                Text("Calories Burned today:")
                     .font(.largeTitle)
                     .fontWeight(.bold)
 

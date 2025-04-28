@@ -8,6 +8,11 @@ struct StepsDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
+              
+              // Title
+              Text("Steps walked today:")
+                  .font(.largeTitle)
+                  .fontWeight(.bold)
 
                 // Steps Range
                 VStack {
@@ -26,7 +31,8 @@ struct StepsDetailView: View {
                             .fontWeight(.bold)
                     }
                 }
-
+                
+              
                 // Steps Chart
                 if !healthKitManager.stepsTrendData.isEmpty {
                     Chart {
