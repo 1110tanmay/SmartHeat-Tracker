@@ -7,17 +7,10 @@ struct DistanceDetailView: View {
     @State private var timer: Timer?
     
     @State private var isLoading = true
-    @State private var navigateToTrends = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-
-                // Hidden NavigationLink (manual trigger)
-                NavigationLink(destination: TrendsView(), isActive: $navigateToTrends) {
-                    EmptyView()
-                }
-                .hidden()
 
                 if isLoading {
                     ProgressView("Loading distance data...")
@@ -33,15 +26,19 @@ struct DistanceDetailView: View {
                         )
                     }
 
-                    let totalDistance = distanceData.reduce(0) { $0 + $1.distance }
-                    let totalDistanceText = String(format: "%.2f %@", totalDistance, distanceUnit)
+                    // ✅ Use latest full-day distance instead of summing trend points
+                    let latestDistanceKm = healthKitManager.latestDistance ?? 0.0
+                    let latestDistance = distanceUnit == "miles"
+                        ? kmToMiles(latestDistanceKm)
+                        : latestDistanceKm
+                    let totalDistanceText = String(format: "%.2f %@", latestDistance, distanceUnit)
 
                     // Title
                     Text("Distance Covered Details")
                         .font(.largeTitle)
                         .fontWeight(.bold)
 
-                    // Chart
+                    // Chart (still shows 6-hour trend, which is perfect)
                     if !distanceData.isEmpty {
                         Chart {
                             ForEach(distanceData, id: \.timestamp) { point in
@@ -60,9 +57,9 @@ struct DistanceDetailView: View {
                             .padding()
                     }
 
-                    // Total Distance (Last 6 Hours)
+                    // Total Distance (✅ Latest full-day distance)
                     VStack {
-                        Text("Total (Last 6 Hours)")
+                        Text("Total (Today)")
                             .foregroundColor(.white)
                             .fontWeight(.bold)
                         Text(totalDistanceText)
@@ -75,11 +72,8 @@ struct DistanceDetailView: View {
                     .background(Color.blue)
                     .cornerRadius(12)
 
-                    // Navigation Button
-                    Button(action: {
-                        stopPolling()
-                        navigateToTrends = true
-                    }) {
+                    // Navigation to Trends Page
+                    NavigationLink(destination: TrendsView()) {
                         Text("Show More Distance Data")
                             .foregroundColor(.blue)
                             .fontWeight(.semibold)
