@@ -116,11 +116,7 @@ struct CoreTempDetailView: View {
                 .cornerRadius(12)
 
                 // Show More Button
-                NavigationLink(destination: TrendsView()) {
-                    Text("Show More Temperature Data")
-                        .foregroundColor(.blue)
-                        .fontWeight(.semibold)
-                }
+               
 
                 Spacer()
             }

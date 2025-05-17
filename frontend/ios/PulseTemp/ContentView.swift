@@ -3,7 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var hasRequestedHealthKit = false
     @State private var profileImageOpacity: Double = 0.0 // 📌 New for animation
-
+  
     var body: some View {
         TabView {
             SummaryView()

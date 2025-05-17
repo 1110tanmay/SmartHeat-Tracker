@@ -48,3 +48,4 @@ class WorkoutSessionManager: ObservableObject {
         calories += 0.4
     }
 }
+
