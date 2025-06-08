@@ -5,6 +5,8 @@ struct WorkoutSummaryView: View {
     @State private var showCountdown = false
     @Namespace private var animation
 
+    @EnvironmentObject var workoutManager: WorkoutManager
+
     var body: some View {
         ZStack {
             // Background Gradient
@@ -17,14 +19,17 @@ struct WorkoutSummaryView: View {
 
             ScrollView {
                 VStack(spacing: 28) {
-                    Text("PulseTemp Workout")
+                    Text("SmartHeat Tracker")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundColor(.green)
 
-                    workoutTile(icon: "thermometer", title: "Core Temp", value: "37.5°C", color: .orange)
-                    workoutTile(icon: "heart.fill", title: "Heart Rate", value: "85 BPM", color: .red)
+                    // Core Temp (still mock until WatchConnectivity sync)
+                    workoutTile(icon: "thermometer", title: "Core Temp", value: "~37.5°C", color: .orange)
 
-                    // Start Button with Countdown Trigger
+                    // Real-time heart rate from WorkoutManager
+                    workoutTile(icon: "heart.fill", title: "Heart Rate", value: "\(Int(workoutManager.heartRate)) BPM", color: .red)
+
+                    // Start Workout Button
                     Button(action: {
                         withAnimation(.easeInOut) {
                             showCountdown = true
@@ -34,10 +39,7 @@ struct WorkoutSummaryView: View {
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(Color.green)
-                            )
+                            .background(RoundedRectangle(cornerRadius: 14).fill(Color.green))
                             .foregroundColor(.black)
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -45,6 +47,9 @@ struct WorkoutSummaryView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
+                .onAppear {
+                    workoutManager.requestAuthorization() // ✅ Keep only this
+                }
             }
         }
         // Show Countdown First

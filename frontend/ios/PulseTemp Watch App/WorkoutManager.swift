@@ -1,11 +1,11 @@
 import Foundation
 import HealthKit
 import Combine
+import UserNotifications
+import WatchConnectivity
 
-class WorkoutManager: NSObject, ObservableObject {
-
+class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private let healthStore = HKHealthStore()
-
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
@@ -16,9 +16,77 @@ class WorkoutManager: NSObject, ObservableObject {
     @Published var distance: Double = 0
 
     private var timerCancellable: AnyCancellable?
+    private var questionnaireTimer: Timer?
+    private var notificationSent = false
 
-    // MARK: - Start Workout
+    override init() {
+        super.init()
+        print("WorkoutManager initialized ✅")
+        setupWatchConnectivity()
+        requestNotificationPermission()
+      
+      if let info = Bundle.main.infoDictionary {
+          print("🚨 Info.plist keys: \(info.keys)")
+          if let shareDesc = info["NSHealthShareUsageDescription"] as? String {
+              print("✅ NSHealthShareUsageDescription: \(shareDesc)")
+          } else {
+              print("🛑 NSHealthShareUsageDescription missing at runtime")
+          }
+      }
 
+    }
+
+    // MARK: - Watch Connectivity Setup
+    private func setupWatchConnectivity() {
+        if WCSession.isSupported() {
+            let wcSession = WCSession.default
+            wcSession.delegate = self
+            wcSession.activate()
+            print("🔗 WCSession activated")
+        } else {
+            print("🛑 WatchConnectivity not supported")
+        }
+    }
+
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        if let error = error {
+            print("🛑 WCSession activation failed: \(error.localizedDescription)")
+        } else {
+            print("✅ WCSession activation complete with state: \(activationState.rawValue)")
+        }
+    }
+
+    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+        DispatchQueue.main.async {
+            if let hr = message["heartRate"] as? Double {
+                self.heartRate = hr
+                print("❤️ Received heart rate from iPhone: \(hr) BPM")
+            }
+        }
+    }
+
+    // MARK: - HealthKit (used only for workout metrics)
+    func requestAuthorization() {
+        let typesToShare: Set<HKSampleType> = []  // ✅ We are not writing to HealthKit anymore
+
+        let typesToRead: Set = [
+            HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
+            HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
+            HKObjectType.quantityType(forIdentifier: .bodyTemperature)!
+        ]
+
+        healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
+            DispatchQueue.main.async {
+                if success {
+                    print("✅ HealthKit authorization successful")
+                } else {
+                    print("🛑 HealthKit authorization failed: \(error?.localizedDescription ?? "Unknown error")")
+                }
+            }
+        }
+    }
+
+    // MARK: - Workout Session
     func startWorkout() {
         let config = HKWorkoutConfiguration()
         config.activityType = .walking
@@ -27,7 +95,6 @@ class WorkoutManager: NSObject, ObservableObject {
         do {
             session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
             builder = session?.associatedWorkoutBuilder()
-
             session?.delegate = self
             builder?.delegate = self
             builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
@@ -35,39 +102,38 @@ class WorkoutManager: NSObject, ObservableObject {
 
             workoutStartDate = Date()
             session?.startActivity(with: workoutStartDate!)
-            builder?.beginCollection(withStart: workoutStartDate!) { success, error in
-                // You can handle errors here if needed
-            }
+            builder?.beginCollection(withStart: workoutStartDate!) { _, _ in }
 
             startTimer()
+            startQuestionnaireTimer()
 
         } catch {
-            print("Failed to start workout: \(error)")
+            print("🛑 Failed to start workout: \(error.localizedDescription)")
         }
     }
 
     func endWorkout() {
         session?.end()
-        builder?.endCollection(withEnd: Date()) { success, error in
-            self.builder?.finishWorkout { workout, error in
-                // Workout finished
-            }
+        builder?.endCollection(withEnd: Date()) { _, _ in
+            self.builder?.finishWorkout { _, _ in }
         }
 
         timerCancellable?.cancel()
+        questionnaireTimer?.invalidate()
+        notificationSent = false
     }
 
     func pauseWorkout() {
         session?.pause()
         timerCancellable?.cancel()
+        questionnaireTimer?.invalidate()
     }
 
     func resumeWorkout() {
         session?.resume()
         startTimer()
+        startQuestionnaireTimer()
     }
-
-    // MARK: - Timer
 
     private func startTimer() {
         timerCancellable = Timer
@@ -78,25 +144,70 @@ class WorkoutManager: NSObject, ObservableObject {
                 self?.elapsedTime = Date().timeIntervalSince(start)
             }
     }
+
+    // MARK: - Notifications
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if let error = error {
+                print("🛑 Notification permission error: \(error.localizedDescription)")
+                return
+            }
+            print(granted ? "🔔 Notification permission granted" : "🚫 Notification permission denied")
+        }
+    }
+
+    private func sendCoreTempAlertNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "⚠️ High Core Temp"
+        content.body = "Your core body temperature is high. Please rest for 2 minutes."
+        content.sound = .default
+
+        let request = UNNotificationRequest(identifier: UUID().uuidString,
+                                            content: content,
+                                            trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func startQuestionnaireTimer() {
+        questionnaireTimer?.invalidate()
+        questionnaireTimer = Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { [weak self] _ in
+            self?.sendQuestionnaireNotification()
+        }
+    }
+
+    private func sendQuestionnaireNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "📝 Quick Check-In"
+        content.body = """
+        1. Perceived Exertion (6–20)
+        2. Hydration Level (1–5)
+        3. Thermal Sensation (1–5)
+        """
+        content.sound = .default
+
+        let request = UNNotificationRequest(identifier: UUID().uuidString,
+                                            content: content,
+                                            trigger: nil)
+        UNUserNotificationCenter.current().add(request)
+    }
 }
 
 // MARK: - HKWorkoutSessionDelegate
 extension WorkoutManager: HKWorkoutSessionDelegate {
-    func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState,
-                        from fromState: HKWorkoutSessionState, date: Date) {
-        // Optionally handle state changes
-    }
+    func workoutSession(_ workoutSession: HKWorkoutSession,
+                        didChangeTo toState: HKWorkoutSessionState,
+                        from fromState: HKWorkoutSessionState,
+                        date: Date) {}
 
-    func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-        print("Workout session failed: \(error)")
+    func workoutSession(_ workoutSession: HKWorkoutSession,
+                        didFailWithError error: Error) {
+        print("🛑 Workout session failed: \(error.localizedDescription)")
     }
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
-    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {
-        // Handle workout events if needed
-    }
+    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
@@ -106,17 +217,20 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
                   let statistics = builder?.statistics(for: quantityType) else { continue }
 
             switch quantityType {
-            case HKQuantityType.quantityType(forIdentifier: .heartRate):
-                heartRate = statistics.mostRecentQuantity()?
-                    .doubleValue(for: .count().unitDivided(by: .minute())) ?? 0
-
             case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
                 activeEnergy = statistics.sumQuantity()?
                     .doubleValue(for: .kilocalorie()) ?? 0
 
             case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
                 let meters = statistics.sumQuantity()?.doubleValue(for: .meter()) ?? 0
-                distance = meters / 1000  // Convert to km
+                distance = meters / 1000
+
+            case HKQuantityType.quantityType(forIdentifier: .bodyTemperature):
+                let temp = statistics.mostRecentQuantity()?.doubleValue(for: .degreeCelsius()) ?? 0
+                if temp >= 37.8, !notificationSent {
+                    sendCoreTempAlertNotification()
+                    notificationSent = true
+                }
 
             default:
                 break
