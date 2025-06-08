@@ -3,8 +3,10 @@ import PhotosUI
 
 struct ProfileView: View {
     @State private var name: String = ""
-    @State private var age: String = ""
+    @State private var dob: Date = Date()
     @State private var sex: String = "Male"
+    @State private var ethnicity: String = "White"
+    @State private var profession: String = "Employed for wages"
     @State private var weight: String = ""
     @State private var height: String = ""
 
@@ -19,8 +21,35 @@ struct ProfileView: View {
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
 
     let sexOptions = ["Male", "Female", "Other"]
+    let ethnicityOptions = [
+        "American Indian/Alaska Native",
+        "Asian",
+        "Black",
+        "Native Hawaiian/Pacific Islander",
+        "White",
+        "Hispanic/Latinx/Spanish",
+        "Other"
+    ]
+    let professionOptions = [
+        "Employed for wages",
+        "Self-employed",
+        "Out of work and looking for work",
+        "Out of work but not currently looking for work",
+        "A homemaker",
+        "A student",
+        "Military",
+        "Retired",
+        "Unable to work",
+        "Other"
+    ]
     let tempUnits = ["°C", "°F"]
     let distanceUnits = ["km", "miles"]
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter
+    }
 
     var body: some View {
         NavigationView {
@@ -55,14 +84,37 @@ struct ProfileView: View {
                 // 📌 Personal Info Section
                 Section(header: Text("Personal Information")) {
                     EditableField(label: "Name", value: $name, isEditing: isEditing)
-                    EditableField(label: "Age", value: $age, keyboardType: .numberPad, isEditing: isEditing)
+
+                    if isEditing {
+                        DatePicker("Date of Birth", selection: $dob, displayedComponents: .date)
+                    } else {
+                        HStack {
+                            Text("Date of Birth").font(.headline)
+                            Spacer()
+                            Text(dateFormatter.string(from: dob))
+                        }
+                    }
 
                     Picker("Sex", selection: $sex) {
-                        ForEach(sexOptions, id: \ .self) { option in
+                        ForEach(sexOptions, id: \.self) { option in
                             Text(option).tag(option)
                         }
                     }
                     .pickerStyle(SegmentedPickerStyle())
+                    .disabled(!isEditing)
+
+                    Picker("Ethnicity", selection: $ethnicity) {
+                        ForEach(ethnicityOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
+                    .disabled(!isEditing)
+
+                    Picker("Profession", selection: $profession) {
+                        ForEach(professionOptions, id: \.self) { option in
+                            Text(option).tag(option)
+                        }
+                    }
                     .disabled(!isEditing)
 
                     EditableField(label: "Weight (kg)", value: $weight, keyboardType: .numberPad, isEditing: isEditing)
@@ -72,7 +124,7 @@ struct ProfileView: View {
                 // 📌 Units Section
                 Section(header: Text("Unit Preferences")) {
                     Picker("Temperature Unit", selection: $temperatureUnit) {
-                        ForEach(tempUnits, id: \ .self) { unit in
+                        ForEach(tempUnits, id: \.self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -80,7 +132,7 @@ struct ProfileView: View {
                     .disabled(!isEditing)
 
                     Picker("Distance Unit", selection: $distanceUnit) {
-                        ForEach(distanceUnits, id: \ .self) { unit in
+                        ForEach(distanceUnits, id: \.self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -140,8 +192,7 @@ struct ProfileView: View {
     // MARK: Save, Load, Reset Functions
 
     func saveProfile() {
-        guard let ageInt = Int(age),
-              let weightDouble = Double(weight),
+        guard let weightDouble = Double(weight),
               let heightDouble = Double(height) else {
             print("Invalid input, could not save profile.")
             return
@@ -149,8 +200,10 @@ struct ProfileView: View {
 
         let profile = UserProfile(
             name: name,
-            age: ageInt,
+            dob: dob,
             sex: sex,
+            ethnicity: ethnicity,
+            profession: profession,
             height: heightDouble,
             weight: weightDouble,
             distanceUnit: distanceUnit,
@@ -165,8 +218,10 @@ struct ProfileView: View {
     func loadProfile() {
         if let profile = DatabaseManager.shared.fetchUserProfile() {
             name = profile.name
-            age = "\(profile.age)"
+            dob = profile.dob
             sex = profile.sex
+            ethnicity = profile.ethnicity
+            profession = profile.profession
             weight = "\(profile.weight)"
             height = "\(profile.height)"
             distanceUnit = profile.distanceUnit
@@ -177,8 +232,10 @@ struct ProfileView: View {
 
     func resetProfile() {
         name = ""
-        age = ""
+        dob = Date()
         sex = "Male"
+        ethnicity = "White"
+        profession = "Employed for wages"
         weight = ""
         height = ""
         temperatureUnit = "°C"
@@ -268,19 +325,18 @@ struct PhotoPicker: UIViewControllerRepresentable {
             self.parent = parent
         }
 
-      func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-          picker.dismiss(animated: true)
-          guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
-          provider.loadObject(ofClass: UIImage.self) { image, _ in
-              DispatchQueue.main.async {
-                  if let uiImage = image as? UIImage {
-                      self.parent.selectedImage = uiImage
-                      ProfileImageManager.shared.save(image: uiImage) // 📌 Save immediately after picking!
-                  }
-              }
-          }
-      }
-
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
+            provider.loadObject(ofClass: UIImage.self) { image, _ in
+                DispatchQueue.main.async {
+                    if let uiImage = image as? UIImage {
+                        self.parent.selectedImage = uiImage
+                        ProfileImageManager.shared.save(image: uiImage)
+                    }
+                }
+            }
+        }
     }
 }
 
