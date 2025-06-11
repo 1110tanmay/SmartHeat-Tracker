@@ -9,6 +9,7 @@ struct ProfileView: View {
     @State private var profession: String = "Employed for wages"
     @State private var weight: String = ""
     @State private var height: String = ""
+    @State private var activityLevel: Int = 0
 
     @State private var isEditing: Bool = false
     @State private var isDataShared: Bool = false
@@ -96,7 +97,7 @@ struct ProfileView: View {
                     }
 
                     Picker("Sex", selection: $sex) {
-                        ForEach(sexOptions, id: \.self) { option in
+                      ForEach(sexOptions, id: \.self) { option in
                             Text(option).tag(option)
                         }
                     }
@@ -104,14 +105,14 @@ struct ProfileView: View {
                     .disabled(!isEditing)
 
                     Picker("Ethnicity", selection: $ethnicity) {
-                        ForEach(ethnicityOptions, id: \.self) { option in
+                      ForEach(ethnicityOptions, id: \.self) { option in
                             Text(option).tag(option)
                         }
                     }
                     .disabled(!isEditing)
 
                     Picker("Profession", selection: $profession) {
-                        ForEach(professionOptions, id: \.self) { option in
+                      ForEach(professionOptions, id: \.self) { option in
                             Text(option).tag(option)
                         }
                     }
@@ -124,7 +125,7 @@ struct ProfileView: View {
                 // 📌 Units Section
                 Section(header: Text("Unit Preferences")) {
                     Picker("Temperature Unit", selection: $temperatureUnit) {
-                        ForEach(tempUnits, id: \.self) { unit in
+                      ForEach(tempUnits, id: \.self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -132,7 +133,7 @@ struct ProfileView: View {
                     .disabled(!isEditing)
 
                     Picker("Distance Unit", selection: $distanceUnit) {
-                        ForEach(distanceUnits, id: \.self) { unit in
+                      ForEach(distanceUnits, id: \.self) { unit in
                             Text(unit).tag(unit)
                         }
                     }
@@ -207,7 +208,8 @@ struct ProfileView: View {
             height: heightDouble,
             weight: weightDouble,
             distanceUnit: distanceUnit,
-            temperatureUnit: temperatureUnit
+            temperatureUnit: temperatureUnit,
+            activityLevel: activityLevel
         )
 
         DatabaseManager.shared.insertOrUpdateUserProfile(profile)
@@ -226,6 +228,7 @@ struct ProfileView: View {
             height = "\(profile.height)"
             distanceUnit = profile.distanceUnit
             temperatureUnit = profile.temperatureUnit
+            activityLevel = profile.activityLevel
         }
         loadProfileImage()
     }
@@ -241,6 +244,7 @@ struct ProfileView: View {
         temperatureUnit = "°C"
         distanceUnit = "km"
         isDataShared = false
+        activityLevel = 0
         selectedImage = nil
         saveProfile()
         deleteProfileImage()

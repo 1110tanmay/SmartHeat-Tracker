@@ -1,9 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var hasRequestedHealthKit = false
     @State private var profileImageOpacity: Double = 0.0 // 📌 New for animation
-  
+
     var body: some View {
         TabView {
             SummaryView()
@@ -23,20 +22,6 @@ struct ContentView: View {
                     Image(systemName: "person.crop.circle")
                     Text("Profile")
                 }
-        }
-        .onAppear {
-            #if !TARGET_INTERFACE_BUILDER
-            guard !hasRequestedHealthKit else { return }
-            hasRequestedHealthKit = true
-
-            HealthKitManager.shared.requestAuthorization { success, error in
-                if success {
-                    print("✅ HealthKit authorization granted")
-                } else {
-                    print("❌ HealthKit authorization failed: \(String(describing: error))")
-                }
-            }
-            #endif
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

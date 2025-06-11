@@ -41,6 +41,7 @@ class DatabaseManager {
     private let weight = SQLiteExpression<Double>("weight")
     private let distanceUnit = SQLiteExpression<String>("distanceUnit")
     private let temperatureUnit = SQLiteExpression<String>("temperatureUnit")
+    private let activityLevel = SQLiteExpression<Int>("activityLevel") // ✅ NEW
 
     // CoreTempHistory table and columns
     private let coreTempHistory = Table("CoreTempHistory")
@@ -128,6 +129,7 @@ class DatabaseManager {
             table.column(weight)
             table.column(distanceUnit)
             table.column(temperatureUnit)
+            table.column(activityLevel)
         })
     }
 
@@ -165,63 +167,80 @@ class DatabaseManager {
             table.column(distanceCovered)
         })
     }
+    
+  // MARK: - User Profile Insert and Fetch
 
-    // MARK: - User Profile Functions
-    func insertOrUpdateUserProfile(_ profile: UserProfile) {
-        do {
-            let existing = userProfile.filter(userId == profile.id)
-            if try db.scalar(existing.count) > 0 {
-                try db.run(existing.update(
-                    name <- profile.name,
-                    dob <- profile.dob,
-                    sex <- profile.sex,
-                    ethnicity <- profile.ethnicity,
-                    profession <- profile.profession,
-                    height <- profile.height,
-                    weight <- profile.weight,
-                    distanceUnit <- profile.distanceUnit,
-                    temperatureUnit <- profile.temperatureUnit
-                ))
-            } else {
-                try db.run(userProfile.insert(
-                    userId <- profile.id,
-                    name <- profile.name,
-                    dob <- profile.dob,
-                    sex <- profile.sex,
-                    ethnicity <- profile.ethnicity,
-                    profession <- profile.profession,
-                    height <- profile.height,
-                    weight <- profile.weight,
-                    distanceUnit <- profile.distanceUnit,
-                    temperatureUnit <- profile.temperatureUnit
-                ))
-            }
-        } catch {
-            print("Failed to insert/update user profile: \(error)")
-        }
-    }
+  func insertOrUpdateUserProfile(_ profile: UserProfile) {
+      do {
+          let existing = userProfile.filter(userId == profile.id)
+          if try db.scalar(existing.count) > 0 {
+              try db.run(existing.update(
+                  name <- profile.name,
+                  dob <- profile.dob,
+                  sex <- profile.sex,
+                  ethnicity <- profile.ethnicity,
+                  profession <- profile.profession,
+                  height <- profile.height,
+                  weight <- profile.weight,
+                  distanceUnit <- profile.distanceUnit,
+                  temperatureUnit <- profile.temperatureUnit,
+                  activityLevel <- profile.activityLevel
+              ))
+          } else {
+              try db.run(userProfile.insert(
+                  userId <- profile.id,
+                  name <- profile.name,
+                  dob <- profile.dob,
+                  sex <- profile.sex,
+                  ethnicity <- profile.ethnicity,
+                  profession <- profile.profession,
+                  height <- profile.height,
+                  weight <- profile.weight,
+                  distanceUnit <- profile.distanceUnit,
+                  temperatureUnit <- profile.temperatureUnit,
+                  activityLevel <- profile.activityLevel
+              ))
+          }
+      } catch {
+          print("❌ Failed to insert/update user profile: \(error)")
+      }
+  }
 
-    func fetchUserProfile() -> UserProfile? {
+  func fetchUserProfile() -> UserProfile? {
+      do {
+          if let row = try db.pluck(userProfile) {
+              return UserProfile(
+                  id: row[userId],
+                  name: row[name],
+                  dob: row[dob],
+                  sex: row[sex],
+                  ethnicity: row[ethnicity],
+                  profession: row[profession],
+                  height: row[height],
+                  weight: row[weight],
+                  distanceUnit: row[distanceUnit],
+                  temperatureUnit: row[temperatureUnit],
+                  activityLevel: row[activityLevel]
+              )
+          }
+      } catch {
+          print("❌ Failed to fetch user profile: \(error)")
+      }
+      return nil
+  }
+
+    // MARK: - Fetch Activity Level ✅
+    func fetchActivityLevel() -> Int? {
         do {
             if let row = try db.pluck(userProfile) {
-                return UserProfile(
-                    id: row[userId],
-                    name: row[name],
-                    dob: row[dob],
-                    sex: row[sex],
-                    ethnicity: row[ethnicity],
-                    profession: row[profession],
-                    height: row[height],
-                    weight: row[weight],
-                    distanceUnit: row[distanceUnit],
-                    temperatureUnit: row[temperatureUnit]
-                )
+                return row[activityLevel]
             }
         } catch {
-            print("Failed to fetch user profile: \(error)")
+            print("Failed to fetch activity level: \(error)")
         }
         return nil
     }
+
 
     // MARK: - Insert Workout
     func insertWorkout(_ session: WorkoutSession) {

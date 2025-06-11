@@ -13,5 +13,7 @@ struct UserProfile: Identifiable, Codable {
 
     var distanceUnit: String // "km" or "miles"
     var temperatureUnit: String // "°C" or "°F"
+
+    var activityLevel: Int // 0–7 scale (e.g., sedentary to very active)
 }
 
