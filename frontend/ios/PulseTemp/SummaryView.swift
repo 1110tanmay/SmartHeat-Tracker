@@ -6,7 +6,7 @@ struct SummaryView: View {
     @StateObject private var profileImageManager = ProfileImageManager.shared
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
     @AppStorage("distanceUnit") private var distanceUnit: String = "km"
-    
+
     @State private var firstName: String = "User"
     @State private var wave = false
 
@@ -52,7 +52,7 @@ struct SummaryView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    
+
                     // Greeting
                     HStack(spacing: 4) {
                         Text("\(timeBasedGreeting()), \(firstName)")
@@ -111,15 +111,8 @@ struct SummaryView: View {
                         )
                     }
 
-                    // Activity
-                    NavigationLink(destination: ActivityDetailView()) {
-                        HealthMetricCard(
-                            title: "Activity",
-                            value: "\(steps.formatted()) steps | \(calories) kcal | \(formattedDistance(distanceKm))",
-                            icon: "flame.fill",
-                            color: .green
-                        )
-                    }
+                    // ✅ Replaced Activity Tile with Workout Summary Tile
+                    WorkoutSummaryTile(workouts: DatabaseManager.shared.fetchRecentWorkouts(limit: 3))
 
                     // Calories
                     NavigationLink(destination: CaloriesDetailView()) {
@@ -152,6 +145,9 @@ struct SummaryView: View {
                     }
                 }
                 .padding(.vertical)
+                .onReceive(healthKitManager.$latestSteps) { _ in }
+                .onReceive(healthKitManager.$latestCalories) { _ in }
+                .onReceive(healthKitManager.$latestDistance) { _ in }
             }
             .navigationTitle("Summary")
             .navigationBarTitleDisplayMode(.large)
@@ -178,21 +174,12 @@ struct SummaryView: View {
                 } else {
                     self.firstName = "User"
                 }
-                wave = true // Start waving animation
+                wave = true
             }
         }
     }
 
     // MARK: - Helpers
-    func formattedTemperature(_ celsius: Double) -> String {
-        if temperatureUnit == "°F" {
-            let fahrenheit = celsius * 9 / 5 + 32
-            return String(format: "%.1f°F", fahrenheit)
-        } else {
-            return String(format: "%.1f°C", celsius)
-        }
-    }
-
     func formattedDistance(_ km: Double) -> String {
         if distanceUnit == "miles" {
             let miles = km * 0.621371
@@ -213,7 +200,6 @@ struct SummaryView: View {
     }
 }
 
-// Supporting struct
 struct TemperatureData: Identifiable {
     let id = UUID()
     let time: String

@@ -6,6 +6,7 @@ struct WorkoutSessionView: View {
 
     @State private var isPaused = false
     @State private var showSummary = false
+    @State private var showingQuestionnaire = false
 
     // Tracking for summary
     @State private var tempSamples: [Double] = []
@@ -24,11 +25,13 @@ struct WorkoutSessionView: View {
 
                     VStack(spacing: 16) {
                         // Timer
-                        Text(String(format: "%02d:%02d", Int(workoutManager.elapsedTime) / 60, Int(workoutManager.elapsedTime) % 60))
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(.yellow)
-                            .monospacedDigit()
-                            .padding(.top)
+                        Text(String(format: "%02d:%02d",
+                                    Int(workoutManager.elapsedTime) / 60,
+                                    Int(workoutManager.elapsedTime) % 60))
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.yellow)
+                        .monospacedDigit()
+                        .padding(.top)
 
                         // Metric Rings
                         HStack(spacing: 16) {
@@ -38,12 +41,12 @@ struct WorkoutSessionView: View {
                         }
                         .padding(.horizontal)
 
-                        // Temp & HR (core temp is still mock for now)
+                        // Temp & HR
                         VStack(spacing: 6) {
                             HStack {
                                 Text("🌡️ Core Temp:")
                                 Spacer()
-                                Text("~37.5°C") // Placeholder until we sync from phone
+                                Text("~37.5°C") // TODO: Replace with synced value
                             }
                             HStack {
                                 Text("❤️ Heart Rate:")
@@ -64,9 +67,7 @@ struct WorkoutSessionView: View {
                                     .font(.headline)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16).fill(Color.yellow)
-                                    )
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.yellow))
                                     .foregroundColor(.black)
                             }
 
@@ -78,9 +79,7 @@ struct WorkoutSessionView: View {
                                     .font(.headline)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 16).fill(Color.red)
-                                    )
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.red))
                                     .foregroundColor(.white)
                             }
                         }
@@ -93,13 +92,29 @@ struct WorkoutSessionView: View {
             .onAppear {
                 workoutManager.startWorkout()
             }
+            .onReceive(workoutManager.$showQuestionnaire) { shouldShow in
+                if shouldShow {
+                    showingQuestionnaire = true
+                    workoutManager.showQuestionnaire = false // reset trigger
+                }
+            }
+            .sheet(isPresented: $showingQuestionnaire) {
+                QuestionnaireView(onSubmit: { exertion, hydration, thermal in
+                    workoutManager.sendQuestionnaireToPhone(
+                        exertion: exertion,
+                        hydration: hydration,
+                        thermal: thermal
+                    )
+                    showingQuestionnaire = false
+                })
+            }
             .navigationDestination(isPresented: $showSummary) {
                 WorkoutSummaryReportView(
                     totalTime: Int(workoutManager.elapsedTime),
                     caloriesBurned: Int(workoutManager.activeEnergy),
                     stepsWalked: estimateSteps(from: workoutManager.distance),
                     distance: workoutManager.distance,
-                    coreTemps: tempSamples, // will update later
+                    coreTemps: tempSamples,
                     heartRates: heartRateSamples,
                     onDone: {
                         presentationMode.wrappedValue.dismiss()
@@ -110,7 +125,7 @@ struct WorkoutSessionView: View {
     }
 
     func estimateSteps(from km: Double) -> Int {
-        return Int((km * 1000) / 0.762) // average stride length ≈ 76.2cm
+        return Int((km * 1000) / 0.762) // average stride length ≈ 76.2 cm
     }
 
     func metricRing(title: String, value: Double, color: Color) -> some View {

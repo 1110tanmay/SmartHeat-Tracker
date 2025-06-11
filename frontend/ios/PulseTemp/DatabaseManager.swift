@@ -21,6 +21,14 @@ class DatabaseManager {
     private let averageCoreTemp = SQLiteExpression<Double?>("averageCoreTemp")
     private let maxCoreTemp = SQLiteExpression<Double?>("maxCoreTemp")
 
+    // QuestionnaireResponses table and columns ✅
+    private let questionnaireResponses = Table("QuestionnaireResponses")
+    private let qWorkoutId = SQLiteExpression<String>("workoutId")
+    private let qTimestamp = SQLiteExpression<String>("timestamp")
+    private let qExertion = SQLiteExpression<Int>("exertion")
+    private let qHydration = SQLiteExpression<Int>("hydration")
+    private let qThermal = SQLiteExpression<Int>("thermal")
+
     // UserProfile table and columns
     private let userProfile = Table("UserProfile")
     private let userId = SQLiteExpression<String>("id")
@@ -67,11 +75,11 @@ class DatabaseManager {
             }
 
             let dbPath = appSupportURL.appendingPathComponent("workouts.sqlite").path
-            //added path to update the schema
             print("📁 DB Path: \(dbPath)")
             db = try Connection(dbPath)
 
             try createWorkoutSessionTable()
+            try createQuestionnaireResponsesTable() // ✅
             try createUserProfileTable()
             try createCoreTempHistoryTable()
             try createHeartRateHistoryTable()
@@ -95,6 +103,16 @@ class DatabaseManager {
             table.column(maxHeartRate)
             table.column(averageCoreTemp)
             table.column(maxCoreTemp)
+        })
+    }
+
+    private func createQuestionnaireResponsesTable() throws {
+        try db.run(questionnaireResponses.create(ifNotExists: true) { table in
+            table.column(qWorkoutId)
+            table.column(qTimestamp)
+            table.column(qExertion)
+            table.column(qHydration)
+            table.column(qThermal)
         })
     }
 
@@ -226,6 +244,22 @@ class DatabaseManager {
         }
     }
 
+    // MARK: - Insert Questionnaire Response ✅
+    func insertQuestionnaireResponse(workoutId: UUID, timestamp: String, exertion: Int, hydration: Int, thermal: Int) {
+        do {
+            try db.run(questionnaireResponses.insert(
+                qWorkoutId <- workoutId.uuidString,
+                qTimestamp <- timestamp,
+                qExertion <- exertion,
+                qHydration <- hydration,
+                qThermal <- thermal
+            ))
+            print("✅ Questionnaire response saved to DB for workout \(workoutId)")
+        } catch {
+            print("🛑 Failed to insert questionnaire response: \(error)")
+        }
+    }
+
     // MARK: - Fetch Recent Workouts
     func fetchRecentWorkouts(limit: Int = 3) -> [WorkoutSession] {
         do {
@@ -349,5 +383,24 @@ class DatabaseManager {
             return []
         }
     }
+
+  func fetchQuestionnaireResponses(for workoutId: UUID) -> [(timestamp: String, exertion: Int, hydration: Int, thermal: Int)] {
+      do {
+          let query = questionnaireResponses.filter(qWorkoutId == workoutId.uuidString)
+          let results = try db.prepare(query)
+          return results.map { row in
+              (
+                  timestamp: row[qTimestamp],
+                  exertion: row[qExertion],
+                  hydration: row[qHydration],
+                  thermal: row[qThermal]
+              )
+          }
+      } catch {
+          print("🛑 Failed to fetch questionnaire responses for workout \(workoutId): \(error)")
+          return []
+      }
+  }
+
 }
 

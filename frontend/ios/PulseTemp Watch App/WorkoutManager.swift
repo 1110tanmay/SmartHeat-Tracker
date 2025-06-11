@@ -9,11 +9,13 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
+    @Published var workoutId: UUID = UUID()  // ✅ New: Unique ID per workout
     @Published var workoutStartDate: Date?
     @Published var elapsedTime: TimeInterval = 0
     @Published var heartRate: Double = 0
     @Published var activeEnergy: Double = 0
     @Published var distance: Double = 0
+    @Published var showQuestionnaire: Bool = false
 
     private var timerCancellable: AnyCancellable?
     private var questionnaireTimer: Timer?
@@ -24,16 +26,15 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         print("WorkoutManager initialized ✅")
         setupWatchConnectivity()
         requestNotificationPermission()
-      
-      if let info = Bundle.main.infoDictionary {
-          print("🚨 Info.plist keys: \(info.keys)")
-          if let shareDesc = info["NSHealthShareUsageDescription"] as? String {
-              print("✅ NSHealthShareUsageDescription: \(shareDesc)")
-          } else {
-              print("🛑 NSHealthShareUsageDescription missing at runtime")
-          }
-      }
 
+        if let info = Bundle.main.infoDictionary {
+            print("🚨 Info.plist keys: \(info.keys)")
+            if let shareDesc = info["NSHealthShareUsageDescription"] as? String {
+                print("✅ NSHealthShareUsageDescription: \(shareDesc)")
+            } else {
+                print("🛑 NSHealthShareUsageDescription missing at runtime")
+            }
+        }
     }
 
     // MARK: - Watch Connectivity Setup
@@ -65,9 +66,30 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    // MARK: - HealthKit (used only for workout metrics)
+    // MARK: - Send Questionnaire to iPhone ✅
+    func sendQuestionnaireToPhone(exertion: Int, hydration: Int, thermal: Int) {
+        guard WCSession.default.isReachable else {
+            print("📡 iPhone not reachable — cannot send questionnaire.")
+            return
+        }
+
+        let message: [String: Any] = [
+            "type": "questionnaire",
+            "exertion": exertion,
+            "hydration": hydration,
+            "thermal": thermal,
+            "timestamp": ISO8601DateFormatter().string(from: Date()),
+            "workoutId": workoutId.uuidString  // ✅ include ID
+        ]
+
+        WCSession.default.sendMessage(message, replyHandler: nil) { error in
+            print("🛑 Failed to send questionnaire to iPhone: \(error.localizedDescription)")
+        }
+    }
+
+    // MARK: - HealthKit Authorization
     func requestAuthorization() {
-        let typesToShare: Set<HKSampleType> = []  // ✅ We are not writing to HealthKit anymore
+        let typesToShare: Set<HKSampleType> = []
 
         let typesToRead: Set = [
             HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
@@ -86,8 +108,10 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    // MARK: - Workout Session
+    // MARK: - Workout Session Management
     func startWorkout() {
+        workoutId = UUID()  // ✅ Generate a new ID at the start
+
         let config = HKWorkoutConfiguration()
         config.activityType = .walking
         config.locationType = .indoor
@@ -97,8 +121,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             builder = session?.associatedWorkoutBuilder()
             session?.delegate = self
             builder?.delegate = self
-            builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore,
-                                                          workoutConfiguration: config)
+            builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: config)
 
             workoutStartDate = Date()
             session?.startActivity(with: workoutStartDate!)
@@ -147,13 +170,15 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Notifications
     private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
                 print("🛑 Notification permission error: \(error.localizedDescription)")
                 return
             }
             print(granted ? "🔔 Notification permission granted" : "🚫 Notification permission denied")
         }
+        center.delegate = self
     }
 
     private func sendCoreTempAlertNotification() {
@@ -192,6 +217,20 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
 }
 
+// MARK: - UNUserNotificationCenterDelegate
+extension WorkoutManager: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if response.notification.request.content.title == "📝 Quick Check-In" {
+            DispatchQueue.main.async {
+                self.showQuestionnaire = true
+            }
+        }
+        completionHandler()
+    }
+}
+
 // MARK: - HKWorkoutSessionDelegate
 extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession,
@@ -211,15 +250,13 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
-
         for type in collectedTypes {
             guard let quantityType = type as? HKQuantityType,
                   let statistics = builder?.statistics(for: quantityType) else { continue }
 
             switch quantityType {
             case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
-                activeEnergy = statistics.sumQuantity()?
-                    .doubleValue(for: .kilocalorie()) ?? 0
+                activeEnergy = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
 
             case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
                 let meters = statistics.sumQuantity()?.doubleValue(for: .meter()) ?? 0
