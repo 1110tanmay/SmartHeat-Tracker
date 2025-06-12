@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SignUpView: View {
+    var onSubmit: () -> Void // added to include onboarding flow
     @Environment(\.dismiss) var dismiss
 
     @State private var name = ""
@@ -22,7 +23,8 @@ struct SignUpView: View {
     ]
 
     var body: some View {
-        NavigationView {
+      print("👀 SignUpView appeared")
+       return NavigationView {
             Form {
                 Section(header: Text("Profile Information")) {
                     TextField("Name", text: $name)
@@ -57,6 +59,8 @@ struct SignUpView: View {
             .navigationTitle("Sign Up")
             .alert("Success", isPresented: $showAlert) {
                 Button("Continue") {
+                  print("✅ Continue tapped, calling onSubmit")
+                    onSubmit()  // ✅ Transition onboarding after alert is dismissed
                     dismiss()
                 }
             } message: {
