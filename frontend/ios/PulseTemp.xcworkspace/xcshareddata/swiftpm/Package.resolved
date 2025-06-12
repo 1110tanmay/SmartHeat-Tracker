@@ -1,5 +1,5 @@
 {
-  "originHash" : "42598adf0e546dd7490b40b2fd0f5298dee9c098f71dcdbfcb5cc4c07573f374",
+  "originHash" : "86160a2deabe6470d0f93137d8c7c4b21b328e2aa41cb33a0a96282ec374ff4d",
   "pins" : [
     {
       "identity" : "sqlite.swift",
@@ -8,6 +8,24 @@
       "state" : {
         "revision" : "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
         "version" : "0.15.3"
+      }
+    },
+    {
+      "identity" : "swiftxlsx",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/3973770/SwiftXLSX",
+      "state" : {
+        "branch" : "main",
+        "revision" : "6414cb5f3827a99bfcde2a26f2ecb2c0a35b4982"
+      }
+    },
+    {
+      "identity" : "ziparchive",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ZipArchive/ZipArchive.git",
+      "state" : {
+        "revision" : "38e0ce0598e06b034271f296a8e15b149c91aa19",
+        "version" : "2.4.3"
       }
     }
   ],

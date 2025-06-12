@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		406AE5B82DF9C1AC00E4BD12 /* SwiftXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 406AE5B72DF9C1AC00E4BD12 /* SwiftXLSX */; };
 		4076618D2D86607D00891077 /* PulseTemp.app in Resources */ = {isa = PBXBuildFile; fileRef = 407661272D865BAA00891077 /* PulseTemp.app */; };
 		40816F8F2DB97CB000CF8A01 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 40816F8E2DB97CB000CF8A01 /* SQLite */; };
 		4088F7DD2D8A776B000C74C8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4088F7DB2D8A776B000C74C8 /* ContentView.swift */; };
@@ -123,6 +124,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				40816F8F2DB97CB000CF8A01 /* SQLite in Frameworks */,
+				406AE5B82DF9C1AC00E4BD12 /* SwiftXLSX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -281,6 +283,7 @@
 			name = PulseTemp;
 			packageProductDependencies = (
 				40816F8E2DB97CB000CF8A01 /* SQLite */,
+				406AE5B72DF9C1AC00E4BD12 /* SwiftXLSX */,
 			);
 			productName = PulseTemp;
 			productReference = 407661272D865BAA00891077 /* PulseTemp.app */;
@@ -448,6 +451,7 @@
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
 				40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */,
+				406AE5B62DF9C1AC00E4BD12 /* XCRemoteSwiftPackageReference "SwiftXLSX" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
 			projectDirPath = "";
@@ -1420,6 +1424,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		406AE5B62DF9C1AC00E4BD12 /* XCRemoteSwiftPackageReference "SwiftXLSX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/3973770/SwiftXLSX";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
@@ -1431,6 +1443,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		406AE5B72DF9C1AC00E4BD12 /* SwiftXLSX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 406AE5B62DF9C1AC00E4BD12 /* XCRemoteSwiftPackageReference "SwiftXLSX" */;
+			productName = SwiftXLSX;
+		};
 		40816F8E2DB97CB000CF8A01 /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */;
