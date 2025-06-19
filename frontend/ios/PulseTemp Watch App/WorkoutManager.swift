@@ -1,3 +1,5 @@
+// WorkoutManager.swift
+
 import Foundation
 import HealthKit
 import Combine
@@ -9,13 +11,14 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
 
-    @Published var workoutId: UUID = UUID()  // ✅ New: Unique ID per workout
+    @Published var workoutId: UUID = UUID()
     @Published var workoutStartDate: Date?
     @Published var elapsedTime: TimeInterval = 0
     @Published var heartRate: Double = 0
     @Published var activeEnergy: Double = 0
     @Published var distance: Double = 0
     @Published var showQuestionnaire: Bool = false
+    @Published var coreTemp: Double = 0.0
 
     private var timerCancellable: AnyCancellable?
     private var questionnaireTimer: Timer?
@@ -63,10 +66,14 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
                 self.heartRate = hr
                 print("❤️ Received heart rate from iPhone: \(hr) BPM")
             }
+            if let temp = message["coreTemp"] as? Double {
+                self.coreTemp = temp
+                print("🌡️ Received core temp from iPhone: \(temp) °C")
+            }
         }
     }
 
-    // MARK: - Send Questionnaire to iPhone ✅
+    // MARK: - Send Questionnaire to iPhone
     func sendQuestionnaireToPhone(exertion: Int, hydration: Int, thermal: Int) {
         guard WCSession.default.isReachable else {
             print("📡 iPhone not reachable — cannot send questionnaire.")
@@ -79,7 +86,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
             "hydration": hydration,
             "thermal": thermal,
             "timestamp": ISO8601DateFormatter().string(from: Date()),
-            "workoutId": workoutId.uuidString  // ✅ include ID
+            "workoutId": workoutId.uuidString
         ]
 
         WCSession.default.sendMessage(message, replyHandler: nil) { error in
@@ -110,7 +117,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
     // MARK: - Workout Session Management
     func startWorkout() {
-        workoutId = UUID()  // ✅ Generate a new ID at the start
+        workoutId = UUID()
 
         let config = HKWorkoutConfiguration()
         config.activityType = .walking

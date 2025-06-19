@@ -1,6 +1,7 @@
 import Foundation
 import HealthKit
 import Combine
+import WatchConnectivity
 
 class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
@@ -28,6 +29,8 @@ class HealthKitManager: ObservableObject {
     @Published var historicalCoreTemp: [CoreTempPoint] = []
 
     private let ecTempCalculator = ECTempCalculator()
+    private var liveSyncTimer: Timer?
+
     private init() {}
 
     // MARK: - Authorization
@@ -49,32 +52,52 @@ class HealthKitManager: ObservableObject {
         }
     }
 
-    // MARK: - Fetch Latest Values
-    func fetchLatestHeartRate() {
-        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-        
-        let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
-            guard let sample = results?.first as? HKQuantitySample else { return }
-            let unit = HKUnit.count().unitDivided(by: .minute())
-            
-            DispatchQueue.main.async {
-                let heartRate = sample.quantity.doubleValue(for: unit)
-                self.latestHeartRate = heartRate
-                self.heartRateData.append(HeartRatePoint(timestamp: Date(), bpm: heartRate))
-                if self.heartRateData.count > 100 { self.heartRateData.removeFirst() }
+  private func sendLiveMetricsToWatch(hr: Double, temp: Double) {
+      guard WCSession.default.isReachable else {
+          print("📡 Watch not reachable")
+          return
+      }
 
-                // ➡️ Insert into database
-                DatabaseManager.shared.insertHeartRatePoint(HeartRatePoint(timestamp: Date(), bpm: heartRate))
+      let message: [String: Any] = [
+          "heartRate": hr,
+          "coreTemp": temp
+      ]
 
-                let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
-                self.latestCoreTemp = ct
-                self.coreTempTrendData.append(CoreTempPoint(timestamp: Date(), temp: ct))
-                if self.coreTempTrendData.count > 60 { self.coreTempTrendData.removeFirst() }
-            }
-        }
-        healthStore.execute(query)
-    }
+      WCSession.default.sendMessage(message, replyHandler: nil) { error in
+          print("🛑 Failed to send to Watch: \(error.localizedDescription)")
+      }
+  }
+
+  
+  func fetchLatestHeartRate() {
+      guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
+      let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
+      
+      let query = HKSampleQuery(sampleType: type, predicate: nil, limit: 1, sortDescriptors: [sort]) { _, results, _ in
+          guard let sample = results?.first as? HKQuantitySample else { return }
+          let unit = HKUnit.count().unitDivided(by: .minute())
+          
+          DispatchQueue.main.async {
+              let heartRate = sample.quantity.doubleValue(for: unit)
+              self.latestHeartRate = heartRate
+              self.heartRateData.append(HeartRatePoint(timestamp: Date(), bpm: heartRate))
+              if self.heartRateData.count > 100 { self.heartRateData.removeFirst() }
+
+              // ➡️ Insert into database
+              DatabaseManager.shared.insertHeartRatePoint(HeartRatePoint(timestamp: Date(), bpm: heartRate))
+
+              let ct = self.ecTempCalculator.updateCoreTemp(with: heartRate)
+              self.latestCoreTemp = ct
+              self.coreTempTrendData.append(CoreTempPoint(timestamp: Date(), temp: ct))
+              if self.coreTempTrendData.count > 60 { self.coreTempTrendData.removeFirst() }
+
+              // ✅ Add this line at the end of the DispatchQueue block:
+              self.sendLiveMetricsToWatch(hr: heartRate, temp: ct)
+          }
+      }
+      healthStore.execute(query)
+  }
+
 
     func fetchLatestSteps() {
         guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
@@ -384,6 +407,24 @@ class HealthKitManager: ObservableObject {
       }
 
       healthStore.execute(query)
+  }
+
+  func startLiveSync() {
+      // Invalidate existing timer if any
+      liveSyncTimer?.invalidate()
+
+      // Start new timer
+      liveSyncTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+          self?.fetchLatestHeartRate()
+      }
+
+      print("⏱️ Live iPhone → Watch sync started")
+  }
+
+  func stopLiveSync() {
+      liveSyncTimer?.invalidate()
+      liveSyncTimer = nil
+      print("⛔️ Live sync stopped")
   }
 
 }

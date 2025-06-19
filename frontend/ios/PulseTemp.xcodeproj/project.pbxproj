@@ -9,16 +9,23 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		406AE5B82DF9C1AC00E4BD12 /* SwiftXLSX in Frameworks */ = {isa = PBXBuildFile; productRef = 406AE5B72DF9C1AC00E4BD12 /* SwiftXLSX */; };
-		4076618D2D86607D00891077 /* PulseTemp.app in Resources */ = {isa = PBXBuildFile; fileRef = 407661272D865BAA00891077 /* PulseTemp.app */; };
 		40816F8F2DB97CB000CF8A01 /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 40816F8E2DB97CB000CF8A01 /* SQLite */; };
 		4088F7DD2D8A776B000C74C8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4088F7DB2D8A776B000C74C8 /* ContentView.swift */; };
+		40B2ABFA2E043EBC00B96E3A /* PulseTemp Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 4076614C2D865BAC00891077 /* PulseTemp Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		7E38FD8F7DE14B531A43B594 /* Pods_pulseTemp.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE47AE02D31D5418CE23643D /* Pods_pulseTemp.framework */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		9665D7F5CB1A3BD5C53A5490 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		BF532C06529238FCFBEACF60 /* libPods-pulseTemp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 716CDD09FB6EE4AD6D0CF65C /* libPods-pulseTemp.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		4031D4CC2E048A3500CECE82 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4076614B2D865BAC00891077;
+			remoteInfo = "PulseTemp Watch App";
+		};
 		407661372D865BAC00891077 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -27,13 +34,6 @@
 			remoteInfo = PulseTemp;
 		};
 		407661412D865BAC00891077 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 407661262D865BAA00891077;
-			remoteInfo = PulseTemp;
-		};
-		4076618E2D86607D00891077 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
@@ -63,6 +63,7 @@
 			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
 			dstSubfolderSpec = 16;
 			files = (
+				40B2ABFA2E043EBC00B96E3A /* PulseTemp Watch App.app in Embed Watch Content */,
 			);
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -85,9 +86,9 @@
 		4088F7DB2D8A776B000C74C8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-PulseTemp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PulseTemp.release.xcconfig"; path = "Target Support Files/Pods-PulseTemp/Pods-PulseTemp.release.xcconfig"; sourceTree = "<group>"; };
 		6A804C7EA40324963FE195E5 /* Pods-pulseTemp.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-pulseTemp.release.xcconfig"; path = "Target Support Files/Pods-pulseTemp/Pods-pulseTemp.release.xcconfig"; sourceTree = "<group>"; };
-		716CDD09FB6EE4AD6D0CF65C /* libPods-pulseTemp.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-pulseTemp.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = PulseTemp/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = PulseTemp/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		DE47AE02D31D5418CE23643D /* Pods_pulseTemp.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_pulseTemp.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -115,7 +116,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BF532C06529238FCFBEACF60 /* libPods-pulseTemp.a in Frameworks */,
+				7E38FD8F7DE14B531A43B594 /* Pods_pulseTemp.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -182,7 +183,7 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				716CDD09FB6EE4AD6D0CF65C /* libPods-pulseTemp.a */,
+				DE47AE02D31D5418CE23643D /* Pods_pulseTemp.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -253,7 +254,6 @@
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				00EEFC60759A1932668264C0 /* [CP] Embed Pods Frameworks */,
-				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -276,6 +276,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				4031D4CD2E048A3500CECE82 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				407661282D865BAA00891077 /* PulseTemp */,
@@ -306,8 +307,6 @@
 				407661392D865BAC00891077 /* PulseTempTests */,
 			);
 			name = PulseTempTests;
-			packageProductDependencies = (
-			);
 			productName = PulseTempTests;
 			productReference = 407661362D865BAC00891077 /* PulseTempTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -329,8 +328,6 @@
 				407661432D865BAC00891077 /* PulseTempUITests */,
 			);
 			name = PulseTempUITests;
-			packageProductDependencies = (
-			);
 			productName = PulseTempUITests;
 			productReference = 407661402D865BAC00891077 /* PulseTempUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -346,14 +343,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				4076618F2D86607D00891077 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				407661502D865BAC00891077 /* PulseTemp Watch App */,
 			);
 			name = "PulseTemp Watch App";
-			packageProductDependencies = (
-			);
 			productName = "PulseTemp Watch App";
 			productReference = 4076614C2D865BAC00891077 /* PulseTemp Watch App.app */;
 			productType = "com.apple.product-type.application";
@@ -375,8 +369,6 @@
 				407661612D865BAD00891077 /* PulseTemp Watch AppTests */,
 			);
 			name = "PulseTemp Watch AppTests";
-			packageProductDependencies = (
-			);
 			productName = "PulseTemp Watch AppTests";
 			productReference = 4076615E2D865BAD00891077 /* PulseTemp Watch AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -398,8 +390,6 @@
 				4076616B2D865BAD00891077 /* PulseTemp Watch AppUITests */,
 			);
 			name = "PulseTemp Watch AppUITests";
-			packageProductDependencies = (
-			);
 			productName = "PulseTemp Watch AppUITests";
 			productReference = 407661682D865BAD00891077 /* PulseTemp Watch AppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -504,7 +494,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4076618D2D86607D00891077 /* PulseTemp.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -584,27 +573,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		E235C05ADACE081382539298 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-pulseTemp/Pods-pulseTemp-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-pulseTemp/Pods-pulseTemp-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-pulseTemp/Pods-pulseTemp-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -662,6 +630,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		4031D4CD2E048A3500CECE82 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4076614B2D865BAC00891077 /* PulseTemp Watch App */;
+			targetProxy = 4031D4CC2E048A3500CECE82 /* PBXContainerItemProxy */;
+		};
 		407661382D865BAC00891077 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 407661262D865BAA00891077 /* PulseTemp */;
@@ -681,11 +654,6 @@
 			isa = PBXTargetDependency;
 			target = 4076614B2D865BAC00891077 /* PulseTemp Watch App */;
 			targetProxy = 40F97C132D8A834A00626D98 /* PBXContainerItemProxy */;
-		};
-		4076618F2D86607D00891077 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 407661262D865BAA00891077 /* PulseTemp */;
-			targetProxy = 4076618E2D86607D00891077 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 

@@ -24,7 +24,12 @@ struct WorkoutSummaryView: View {
                         .foregroundColor(.green)
 
                     // Core Temp (still mock until WatchConnectivity sync)
-                    workoutTile(icon: "thermometer", title: "Core Temp", value: "~37.5°C", color: .orange)
+                  workoutTile(
+                      icon: "thermometer",
+                      title: "Core Temp",
+                      value: String(format: "%.2f°C", workoutManager.coreTemp),
+                      color: .orange
+                  )
 
                     // Real-time heart rate from WorkoutManager
                     workoutTile(icon: "heart.fill", title: "Heart Rate", value: "\(Int(workoutManager.heartRate)) BPM", color: .red)
