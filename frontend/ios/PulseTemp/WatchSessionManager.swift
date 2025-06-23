@@ -19,31 +19,65 @@ class WatchSessionManager: NSObject, WCSessionDelegate {
     }
 
     // MARK: - Incoming Messages from Watch
-    func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        print("📩 Received message from Watch: \(message)")
+  // MARK: - Incoming Messages from Watch
+  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+      print("📩 Received message from Watch: \(message)")
 
-        guard message["type"] as? String == "questionnaire" else { return }
+      if message["type"] as? String == "questionnaire" {
+          if let exertion = message["exertion"] as? Int,
+             let hydration = message["hydration"] as? Int,
+             let thermal = message["thermal"] as? Int,
+             let timestamp = message["timestamp"] as? String,
+             let workoutIdString = message["workoutId"] as? String,
+             let workoutId = UUID(uuidString: workoutIdString) {
 
-        if let exertion = message["exertion"] as? Int,
-           let hydration = message["hydration"] as? Int,
-           let thermal = message["thermal"] as? Int,
-           let timestamp = message["timestamp"] as? String,
-           let workoutIdString = message["workoutId"] as? String,
-           let workoutId = UUID(uuidString: workoutIdString) {
+              // ✅ Save to SQLite with workout ID
+              DatabaseManager.shared.insertQuestionnaireResponse(
+                  workoutId: workoutId,
+                  timestamp: timestamp,
+                  exertion: exertion,
+                  hydration: hydration,
+                  thermal: thermal
+              )
+          } else {
+              print("🛑 Invalid or missing data in questionnaire message")
+          }
 
-            // ✅ Save to SQLite with workout ID
-            DatabaseManager.shared.insertQuestionnaireResponse(
-                workoutId: workoutId,
-                timestamp: timestamp,
-                exertion: exertion,
-                hydration: hydration,
-                thermal: thermal
-            )
+      } else if message["type"] as? String == "workout_summary" {
+          if let workoutIdString = message["workoutId"] as? String,
+             let workoutId = UUID(uuidString: workoutIdString),
+             let start = message["startTime"] as? String,
+             let end = message["endTime"] as? String,
+             let calories = message["calories"] as? Double,
+             let steps = message["steps"] as? Int,
+             let distance = message["distance"] as? Double,
+             let coreMin = message["coreTempMin"] as? Double,
+             let coreMax = message["coreTempMax"] as? Double,
+             let coreAvg = message["coreTempAvg"] as? Double,
+             let hrMin = message["heartRateMin"] as? Int,
+             let hrMax = message["heartRateMax"] as? Int,
+             let hrAvg = message["heartRateAvg"] as? Int {
 
-        } else {
-            print("🛑 Invalid or missing data in questionnaire message")
-        }
-    }
+              // ✅ Save summary workout data to SQLite
+              DatabaseManager.shared.insertWorkoutSummary(
+                  workoutId: workoutId,
+                  startTime: start,
+                  endTime: end,
+                  calories: calories,
+                  steps: steps,
+                  distance: distance,
+                  coreTempMin: coreMin,
+                  coreTempMax: coreMax,
+                  coreTempAvg: coreAvg,
+                  heartRateMin: hrMin,
+                  heartRateMax: hrMax,
+                  heartRateAvg: hrAvg
+              )
+          } else {
+              print("🛑 Invalid or missing data in workout_summary message")
+          }
+      }
+  }
 
     // MARK: - Required WCSessionDelegate Methods
     func session(_ session: WCSession,

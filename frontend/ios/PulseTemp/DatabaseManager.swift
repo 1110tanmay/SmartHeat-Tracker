@@ -91,6 +91,13 @@ class DatabaseManager {
             fatalError("Database connection failed: \(error)")
         }
     }
+  
+  private let iso8601Formatter: ISO8601DateFormatter = {
+      let f = ISO8601DateFormatter()
+      f.formatOptions = [.withInternetDateTime]
+      return f
+  }()
+
 
     private func createWorkoutSessionTable() throws {
         try db.run(workoutSessions.create(ifNotExists: true) { table in
@@ -262,6 +269,47 @@ class DatabaseManager {
             print("Failed to insert workout session: \(error)")
         }
     }
+  
+  func insertWorkoutSummary(
+      workoutId: UUID,
+      startTime: String,
+      endTime: String,
+      calories: Double,
+      steps: Int,
+      distance: Double,
+      coreTempMin: Double,
+      coreTempMax: Double,
+      coreTempAvg: Double,
+      heartRateMin: Int,
+      heartRateMax: Int,
+      heartRateAvg: Int
+  ) {
+      let formatter = ISO8601DateFormatter()
+      guard let start = formatter.date(from: startTime),
+            let end = formatter.date(from: endTime) else {
+          print("🛑 Failed to parse date strings in insertWorkoutSummary")
+          return
+      }
+
+      do {
+          let insert = workoutSessions.insert(
+              id <- workoutId.uuidString,
+              self.startTime <- start,
+              self.endTime <- end,
+              totalSteps <- steps,
+              totalDistance <- distance,
+              totalCalories <- calories,
+              averageHeartRate <- Double(heartRateAvg),
+              maxHeartRate <- Double(heartRateMax),
+              averageCoreTemp <- coreTempAvg,
+              maxCoreTemp <- coreTempMax
+          )
+          try db.run(insert)
+          print("✅ Workout summary inserted for ID \(workoutId)")
+      } catch {
+          print("🛑 Failed to insert workout summary: \(error)")
+      }
+  }
 
     // MARK: - Insert Questionnaire Response ✅
     func insertQuestionnaireResponse(workoutId: UUID, timestamp: String, exertion: Int, hydration: Int, thermal: Int) {
@@ -280,31 +328,60 @@ class DatabaseManager {
     }
 
     // MARK: - Fetch Recent Workouts
-    func fetchRecentWorkouts(limit: Int = 3) -> [WorkoutSession] {
-        do {
-            let rows = try db.prepare(workoutSessions.order(endTime.desc).limit(limit))
-            return rows.compactMap { row in
-                WorkoutSession(
-                    id: UUID(uuidString: row[id]) ?? UUID(),
-                    startTime: row[startTime],
-                    endTime: row[endTime],
-                    totalSteps: row[totalSteps],
-                    totalDistance: row[totalDistance],
-                    totalCalories: row[totalCalories],
-                    averageHeartRate: row[averageHeartRate],
-                    maxHeartRate: row[maxHeartRate],
-                    averageCoreTemp: row[averageCoreTemp],
-                    maxCoreTemp: row[maxCoreTemp],
-                    heartRatePoints: [],
-                    coreTempPoints: [],
-                    stepPoints: []
-                )
+  func fetchRecentWorkouts(limit: Int = 3) -> [WorkoutSession] {
+      do {
+          let rows = try db.prepare(workoutSessions.order(endTime.desc).limit(limit))
+          return rows.compactMap { row in
+              let sessionStart = row[startTime]
+              let sessionEnd = row[endTime]
+
+              // Filter heart rate points within workout time range
+              let hrPoints = fetchAllHeartRatePoints().filter {
+                  $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
+              }
+
+              // Filter core temp points within workout time range
+              let tempPoints = fetchAllCoreTempPoints().filter {
+                  $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
+              }
+
+            let stepPoints = fetchAllStepPoints().filter {
+                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
             }
-        } catch {
-            print("Failed to fetch recent workouts: \(error)")
-            return []
-        }
-    }
+
+            let caloriePoints = fetchAllCaloriePoints().filter {
+                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
+            }
+
+            let distancePoints = fetchAllDistancePoints().filter {
+                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
+            }
+
+            return WorkoutSession(
+                id: UUID(uuidString: row[id]) ?? UUID(),
+                startTime: sessionStart,
+                endTime: sessionEnd,
+                totalSteps: row[totalSteps],
+                totalDistance: row[totalDistance],
+                totalCalories: row[totalCalories],
+                averageHeartRate: row[averageHeartRate],
+                maxHeartRate: row[maxHeartRate],
+                averageCoreTemp: row[averageCoreTemp],
+                maxCoreTemp: row[maxCoreTemp],
+                heartRatePoints: hrPoints,
+                coreTempPoints: tempPoints,
+                stepPoints: stepPoints,
+                caloriePoints: caloriePoints,
+                distancePoints: distancePoints
+            )
+
+          }
+      } catch {
+          print("Failed to fetch recent workouts: \(error)")
+          return []
+      }
+  }
+
 
     // MARK: - Health Data Insert Methods
     func insertCoreTempPoint(_ point: CoreTempPoint) {
@@ -402,6 +479,48 @@ class DatabaseManager {
             return []
         }
     }
+  
+  // MARK: - Fetch Calorie Point at Timestamp
+  func fetchClosestCaloriePoint(to timestamp: Date) -> CaloriePoint? {
+      let windowStart = timestamp.addingTimeInterval(-3)
+      let windowEnd = timestamp.addingTimeInterval(3)
+
+      do {
+          let query = caloriesHistory
+              .filter(caloriesTimestamp >= windowStart && caloriesTimestamp <= windowEnd)
+          let points = try db.prepare(query).map {
+              CaloriePoint(timestamp: $0[caloriesTimestamp], calories: $0[caloriesBurned])
+          }
+
+          return points.min(by: { abs($0.timestamp.timeIntervalSince(timestamp)) < abs($1.timestamp.timeIntervalSince(timestamp)) })
+      } catch {
+          print("❌ Failed to fetch closest CaloriePoint near \(timestamp): \(error)")
+          return nil
+      }
+  }
+
+
+
+  // MARK: - Fetch Distance Point at Timestamp
+  func fetchClosestDistancePoint(to timestamp: Date) -> DistancePoint? {
+      let windowStart = timestamp.addingTimeInterval(-3)
+      let windowEnd = timestamp.addingTimeInterval(3)
+
+      do {
+          let query = distanceHistory
+              .filter(distanceTimestamp >= windowStart && distanceTimestamp <= windowEnd)
+          let points = try db.prepare(query).map {
+              DistancePoint(timestamp: $0[distanceTimestamp], distance: $0[distanceCovered])
+          }
+
+          return points.min(by: { abs($0.timestamp.timeIntervalSince(timestamp)) < abs($1.timestamp.timeIntervalSince(timestamp)) })
+      } catch {
+          print("❌ Failed to fetch closest DistancePoint near \(timestamp): \(error)")
+          return nil
+      }
+  }
+
+
 
   func fetchQuestionnaireResponses(for workoutId: UUID) -> [(timestamp: String, exertion: Int, hydration: Int, thermal: Int)] {
       do {

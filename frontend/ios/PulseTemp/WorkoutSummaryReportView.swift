@@ -1,13 +1,49 @@
 import SwiftUI
 
 struct WorkoutSummaryReportView: View {
-    var totalTime: Int
-    var caloriesBurned: Int
-    var stepsWalked: Int
-    var distance: Double
-    var coreTemps: [Double]
-    var heartRates: [Int]
+    var workout: WorkoutSession
     var onDone: () -> Void
+
+    // New initializer to support live values from WorkoutSessionView
+    init(
+        totalTime: Int,
+        caloriesBurned: Int,
+        stepsWalked: Int,
+        distance: Double,
+        coreTemps: [Double],
+        heartRates: [Int],
+        caloriePoints: [CaloriePoint],      // ✅ add this
+        distancePoints: [DistancePoint],    // ✅ add this
+        onDone: @escaping () -> Void
+    ) {
+        let minTemp = coreTemps.min() ?? 0
+        let maxTemp = coreTemps.max() ?? 0
+        let avgTemp = coreTemps.isEmpty ? 0 : coreTemps.reduce(0, +) / Double(coreTemps.count)
+
+        let minHR = heartRates.min() ?? 0
+        let maxHR = heartRates.max() ?? 0
+        let avgHR = heartRates.isEmpty ? 0 : Double(heartRates.reduce(0, +)) / Double(heartRates.count)
+
+      self.workout = WorkoutSession(
+          id: UUID(),
+          startTime: Date().addingTimeInterval(-Double(totalTime)),
+          endTime: Date(),
+          totalSteps: stepsWalked,
+          totalDistance: distance,
+          totalCalories: Double(caloriesBurned),
+          averageHeartRate: avgHR,
+          maxHeartRate: Double(maxHR),
+          averageCoreTemp: avgTemp,
+          maxCoreTemp: maxTemp,
+          heartRatePoints: heartRates.map { HeartRatePoint(timestamp: Date(), bpm: Double($0)) },
+          coreTempPoints: coreTemps.map { CoreTempPoint(timestamp: Date(), temp: $0) },
+          stepPoints: [],
+          caloriePoints: caloriePoints,      // ✅ fix added
+                distancePoints: distancePoints     // ✅ fix added
+      )
+
+        self.onDone = onDone
+    }
 
     var body: some View {
         ScrollView {
@@ -20,24 +56,24 @@ struct WorkoutSummaryReportView: View {
                     .foregroundColor(.primary)
 
                 VStack(spacing: 12) {
-                    summaryRow(title: "Start Time", value: formattedStartTime())
-                    summaryRow(title: "End Time", value: formattedEndTime())
-                    summaryRow(title: "Total Time", value: "\(totalTime) sec")
-                    summaryRow(title: "Calories Burned", value: "\(caloriesBurned) kcal")
-                    summaryRow(title: "Steps Walked", value: "\(stepsWalked)")
-                    summaryRow(title: "Distance Walked", value: String(format: "%.2f km", distance))
+                    summaryRow(title: "Start Time", value: formattedTime(workout.startTime))
+                    summaryRow(title: "End Time", value: formattedTime(workout.endTime))
+
+                    summaryRow(title: "Calories Burned", value: "\(Int(workout.totalCalories)) kcal")
+                    summaryRow(title: "Steps Walked", value: "\(workout.totalSteps)")
+                    summaryRow(title: "Distance Walked", value: String(format: "%.2f km", workout.totalDistance))
 
                     Divider()
 
-                    summaryRow(title: "Lowest Temp", value: String(format: "%.1f°C", coreTemps.min() ?? 0))
-                    summaryRow(title: "Highest Temp", value: String(format: "%.1f°C", coreTemps.max() ?? 0))
-                    summaryRow(title: "Average Temp", value: String(format: "%.1f°C", average(coreTemps)))
+                    summaryRow(title: "Lowest Temp", value: String(format: "%.2f°C", workout.coreTempMin))
+                    summaryRow(title: "Average Temp", value: String(format: "%.2f°C", workout.coreTempAvg))
+                    summaryRow(title: "Highest Temp", value: String(format: "%.2f°C", workout.coreTempMax))
 
                     Divider()
 
-                    summaryRow(title: "Lowest HR", value: "\(heartRates.min() ?? 0) BPM")
-                    summaryRow(title: "Highest HR", value: "\(heartRates.max() ?? 0) BPM")
-                    summaryRow(title: "Average HR", value: String(format: "%.0f BPM", average(heartRates)))
+                    summaryRow(title: "Lowest HR", value: "\(workout.heartRateMin) BPM")
+                    summaryRow(title: "Average HR", value: "\(workout.heartRateAvg) BPM")
+                    summaryRow(title: "Highest HR", value: "\(workout.heartRateMax) BPM")
                 }
                 .padding(.horizontal)
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
@@ -83,18 +119,11 @@ struct WorkoutSummaryReportView: View {
         return Double(values.reduce(0, +)) / Double(values.count)
     }
 
-    func formattedStartTime() -> String {
+    func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
-        return formatter.string(from: Date().addingTimeInterval(Double(-totalTime)))
-    }
-
-    func formattedEndTime() -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: Date())
+        return formatter.string(from: date)
     }
 }
 

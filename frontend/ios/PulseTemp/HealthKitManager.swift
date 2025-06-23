@@ -47,10 +47,60 @@ class HealthKitManager: ObservableObject {
             HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!
         ]
 
-        healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
-            completion(success, error)
-        }
+      healthStore.requestAuthorization(toShare: nil, read: readTypes) { success, error in
+          DispatchQueue.main.async {
+              if success {
+                  print("✅ HealthKit authorization successful")
+                  self.enableBackgroundHeartRateDelivery()
+                  self.setupBackgroundHeartRateObserver()
+              }
+              completion(success, error)
+          }
+      }
     }
+  func enableBackgroundHeartRateDelivery() {
+      guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate) else { return }
+
+      healthStore.enableBackgroundDelivery(for: heartRateType, frequency: .immediate) { success, error in
+          if success {
+              print("✅ Background delivery enabled for heart rate")
+          } else {
+              print("🛑 Failed to enable background delivery: \(error?.localizedDescription ?? "unknown error")")
+          }
+      }
+  }
+  func setupBackgroundHeartRateObserver() {
+      guard let sampleType = HKObjectType.quantityType(forIdentifier: .heartRate) else {
+          print("🛑 Failed to get heart rate sample type")
+          return
+      }
+
+      print("📣 Registering HKObserverQuery for heart rate")
+
+      let observerQuery = HKObserverQuery(sampleType: sampleType, predicate: nil) { [weak self] _, _, error in
+          if let error = error {
+              print("🛑 ObserverQuery error: \(error.localizedDescription)")
+              return
+          }
+
+          print("🔁 Background heart rate update received at \(Date())")
+
+          // Trigger your normal fetch + sync process
+          self?.fetchLatestHeartRate()
+      }
+
+      healthStore.execute(observerQuery)
+
+      // Always enable background delivery when registering an observer
+      healthStore.enableBackgroundDelivery(for: sampleType, frequency: .immediate) { success, error in
+          if success {
+              print("✅ Background delivery enabled for HR")
+          } else {
+              print("🛑 Failed to enable BG delivery: \(error?.localizedDescription ?? "Unknown error")")
+          }
+      }
+  }
+
 
   private func sendLiveMetricsToWatch(hr: Double, temp: Double) {
       guard WCSession.default.isReachable else {

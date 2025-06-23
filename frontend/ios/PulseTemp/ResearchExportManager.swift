@@ -15,9 +15,9 @@ class ResearchExportManager {
             print("✅ Profile loaded: \(user)")
             csv += "De-Identified User Info\n"
             csv += "ID,Activity Level,Age,Gender,Ethnicity,Profession\n"
-          let id = UUID().uuidString.prefix(8)
-          let age = calculateAge(from: user.dob)
-          csv += "\(id),\(user.activityLevel),\(age),\(user.sex),\(user.ethnicity),\(user.profession)\n\n"
+            let id = UUID().uuidString.prefix(8)
+            let age = calculateAge(from: user.dob)
+            csv += "\(id),\(user.activityLevel),\(age),\(user.sex),\(user.ethnicity),\(user.profession)\n\n"
         }
 
         // MARK: Sheets 2–4 - Workouts
@@ -35,8 +35,11 @@ class ResearchExportManager {
                                 workout.heartRatePoints[safe: i]?.timestamp ??
                                 workout.coreTempPoints[safe: i]?.timestamp ?? Date()
 
-                let calories = 0.0 // Placeholder
-                let distance = 0.0 // Placeholder
+              let caloriePoint = DatabaseManager.shared.fetchClosestCaloriePoint(to: timestamp)
+              let distancePoint = DatabaseManager.shared.fetchClosestDistancePoint(to: timestamp)
+
+                let calories = caloriePoint?.calories ?? 0.0
+                let distance = distancePoint?.distance ?? 0.0
                 let steps = workout.stepPoints[safe: i]?.steps ?? 0
                 let heartRate = workout.heartRatePoints[safe: i]?.bpm ?? 0
                 let temp = workout.coreTempPoints[safe: i]?.temp ?? 0
@@ -50,18 +53,22 @@ class ResearchExportManager {
             csv += "Calories Burned,\(workout.totalCalories)\n"
             csv += "Distance Walked,\(workout.totalDistance)\n"
             csv += "Steps Walked,\(workout.totalSteps)\n"
-
-            // These two fallback to 0 for now as min* values aren’t stored
-            csv += "Core Temp (Min),\(0)\n"
+            csv += "Core Temp (Min),\(workout.coreTempMin)\n"
             csv += "Core Temp (Avg),\(workout.averageCoreTemp ?? 0)\n"
             csv += "Core Temp (Max),\(workout.maxCoreTemp ?? 0)\n"
-            csv += "Heart Rate (Min),\(0)\n"
+            csv += "Heart Rate (Min),\(workout.heartRateMin)\n"
             csv += "Heart Rate (Avg),\(workout.averageHeartRate ?? 0)\n"
             csv += "Heart Rate (Max),\(workout.maxHeartRate ?? 0)\n"
 
             let responses = DatabaseManager.shared.fetchQuestionnaireResponses(for: workout.id)
+            let formatter = ISO8601DateFormatter()
+
             for response in responses {
-                csv += "\nQuestionnaire @ \((response.timestamp))\n"
+              if let date = formatter.date(from: response.timestamp) {
+                      csv += "\nQuestionnaire @ \(iso8601(date))\n"
+                  } else {
+                      csv += "\nQuestionnaire @ INVALID_DATE\n"
+                  }
                 csv += "Exertion,Hydration,Thermal\n"
                 csv += "\(response.exertion),\(response.hydration),\(response.thermal)\n"
             }

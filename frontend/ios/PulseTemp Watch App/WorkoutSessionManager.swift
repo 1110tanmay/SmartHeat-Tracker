@@ -10,7 +10,9 @@ class WorkoutSessionManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var steps: Int = 0
     @Published var distance: Double = 0
     @Published var calories: Double = 0
-
+  
+    private var coreTempArray: [Double] = []
+    private var heartRateArray: [Int] = []
     private var timer: Timer?
 
     override init() {
@@ -51,10 +53,42 @@ class WorkoutSessionManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-    func endWorkout() {
-        timer?.invalidate()
-        timer = nil
-    }
+  func endWorkout() {
+      timer?.invalidate()
+      timer = nil
+
+      // Send workout summary to iPhone
+      let summary: [String: Any] = [
+          "type": "workout_summary",
+          "duration": Int(duration),
+          "calories": Int(calories),
+          "steps": steps,
+          "distance": distance,
+
+          "coreTempMin": coreTempArray.min() ?? 0,
+          "coreTempAvg": coreTempArray.isEmpty ? 0 : coreTempArray.reduce(0, +) / Double(coreTempArray.count),
+          "coreTempMax": coreTempArray.max() ?? 0,
+
+          "heartRateMin": heartRateArray.min() ?? 0,
+          "heartRateAvg": heartRateArray.isEmpty ? 0 : Double(heartRateArray.reduce(0, +)) / Double(heartRateArray.count),
+          "heartRateMax": heartRateArray.max() ?? 0
+      ]
+
+      if WCSession.default.isReachable {
+        WCSession.default.sendMessage(summary, replyHandler: { response in
+            print("✅ Workout summary sent successfully. iPhone responded with: \(response)")
+        }, errorHandler: { error in
+            print("🛑 Failed to send workout summary: \(error.localizedDescription)")
+        })
+      } else {
+          print("⚠️ iPhone not reachable. Workout summary not sent.")
+      }
+
+      // Optional: clear arrays
+      coreTempArray.removeAll()
+      heartRateArray.removeAll()
+  }
+
 
     private func updateMetrics() {
         // These will be dynamically updated via WatchConnectivity now.
@@ -66,12 +100,16 @@ class WorkoutSessionManager: NSObject, ObservableObject, WCSessionDelegate {
     // MARK: - WatchConnectivity Delegate
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         DispatchQueue.main.async {
-            if let hr = message["heartRate"] as? Double {
-                self.heartRate = Int(hr)
-            }
-            if let temp = message["coreTemp"] as? Double {
-                self.coreTemp = temp
-            }
+          if let hr = message["heartRate"] as? Double {
+              let bpm = Int(hr)
+              self.heartRate = bpm
+              self.heartRateArray.append(bpm) // 🆕 collect it
+          }
+
+          if let temp = message["coreTemp"] as? Double {
+              self.coreTemp = temp
+              self.coreTempArray.append(temp) // 🆕 collect it
+          }
         }
     }
 

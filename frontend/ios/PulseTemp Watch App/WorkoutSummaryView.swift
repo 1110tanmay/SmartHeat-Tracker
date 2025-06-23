@@ -30,7 +30,7 @@ struct WorkoutSummaryView: View {
                       value: String(format: "%.2f°C", workoutManager.coreTemp),
                       color: .orange
                   )
-
+                  
                     // Real-time heart rate from WorkoutManager
                     workoutTile(icon: "heart.fill", title: "Heart Rate", value: "\(Int(workoutManager.heartRate)) BPM", color: .red)
 

@@ -56,8 +56,10 @@ struct WorkoutListModal: View {
                     caloriesBurned: Int(workout.totalCalories),
                     stepsWalked: workout.totalSteps,
                     distance: workout.totalDistance,
-                    coreTemps: workout.coreTempPoints.map { $0.temp },       // ❌ Will be empty
-                    heartRates: workout.heartRatePoints.map { Int($0.bpm) }, // ❌ Will be empty
+                    coreTemps: workout.coreTempPoints.map { $0.temp },
+                    heartRates: workout.heartRatePoints.map { Int($0.bpm) },
+                    caloriePoints: workout.caloriePoints,              // ✅ Add this
+                    distancePoints: workout.distancePoints,            // ✅ Add this
                     onDone: { selectedWorkout = nil }
                 )
             }

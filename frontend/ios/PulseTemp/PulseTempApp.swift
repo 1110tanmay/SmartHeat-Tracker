@@ -6,6 +6,7 @@ struct PulseTempApp: App {
 
     init() {
         _ = WatchSessionManager.shared  // ✅ Ensure WatchConnectivity is active on launch
+      HealthKitManager.shared.startLiveSync()  // ✅ Start live heart rate & temp sync to Watch
     }
 
     var body: some Scene {

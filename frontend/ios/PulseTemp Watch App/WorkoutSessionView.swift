@@ -46,7 +46,7 @@ struct WorkoutSessionView: View {
                             HStack {
                                 Text("🌡️ Core Temp:")
                                 Spacer()
-                                Text("~37.5°C") // TODO: Replace with synced value
+                              Text(String(format: "%.2f°C", workoutManager.coreTemp)) //Showing real values now.
                             }
                             HStack {
                                 Text("❤️ Heart Rate:")
@@ -91,6 +91,12 @@ struct WorkoutSessionView: View {
             }
             .onAppear {
                 workoutManager.startWorkout()
+            }
+            .onChange(of: workoutManager.coreTemp) { newTemp in
+                tempSamples.append(newTemp)
+            }
+            .onChange(of: workoutManager.heartRate) { newHR in
+                heartRateSamples.append(Int(newHR))
             }
             .onReceive(workoutManager.$showQuestionnaire) { shouldShow in
                 if shouldShow {
