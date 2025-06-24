@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -93,7 +93,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		40F97BBF2D8A7BB800626D98 /* Exceptions for "PulseTemp" folder in "PulseTemp" target */ = {
+		40F97BBF2D8A7BB800626D98 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -103,73 +103,12 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		407661282D865BAA00891077 /* PulseTemp */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				40F97BBF2D8A7BB800626D98 /* Exceptions for "PulseTemp" folder in "PulseTemp" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = PulseTemp;
-			sourceTree = "<group>";
-		};
-		407661392D865BAC00891077 /* PulseTempTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = PulseTempTests;
-			sourceTree = "<group>";
-		};
-		407661432D865BAC00891077 /* PulseTempUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = PulseTempUITests;
-			sourceTree = "<group>";
-		};
-		407661502D865BAC00891077 /* PulseTemp Watch App */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "PulseTemp Watch App";
-			sourceTree = "<group>";
-		};
-		407661612D865BAD00891077 /* PulseTemp Watch AppTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "PulseTemp Watch AppTests";
-			sourceTree = "<group>";
-		};
-		4076616B2D865BAD00891077 /* PulseTemp Watch AppUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = "PulseTemp Watch AppUITests";
-			sourceTree = "<group>";
-		};
+		407661282D865BAA00891077 /* PulseTemp */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (40F97BBF2D8A7BB800626D98 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = PulseTemp; sourceTree = "<group>"; };
+		407661392D865BAC00891077 /* PulseTempTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = PulseTempTests; sourceTree = "<group>"; };
+		407661432D865BAC00891077 /* PulseTempUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = PulseTempUITests; sourceTree = "<group>"; };
+		407661502D865BAC00891077 /* PulseTemp Watch App */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "PulseTemp Watch App"; sourceTree = "<group>"; };
+		407661612D865BAD00891077 /* PulseTemp Watch AppTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "PulseTemp Watch AppTests"; sourceTree = "<group>"; };
+		4076616B2D865BAD00891077 /* PulseTemp Watch AppUITests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = "PulseTemp Watch AppUITests"; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -501,7 +440,7 @@
 			);
 			mainGroup = 83CBB9F61A601CBA00E9B192;
 			packageReferences = (
-				40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite.swift" */,
+				40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */,
 				406AE5B62DF9C1AC00E4BD12 /* XCRemoteSwiftPackageReference "SwiftXLSX" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
@@ -599,9 +538,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-pulseTemp/Pods-pulseTemp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-pulseTemp/Pods-pulseTemp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -1296,10 +1239,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -1368,10 +1308,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
@@ -1465,7 +1402,7 @@
 				kind = branch;
 			};
 		};
-		40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite.swift" */ = {
+		40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
 			requirement = {
@@ -1483,7 +1420,7 @@
 		};
 		40816F8E2DB97CB000CF8A01 /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite.swift" */;
+			package = 40816F8D2DB97CB000CF8A01 /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
 		};
 /* End XCSwiftPackageProductDependency section */

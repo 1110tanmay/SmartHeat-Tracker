@@ -2,33 +2,34 @@ import SwiftUI
 
 struct WorkoutSummaryTile: View {
     @State private var showWorkoutList = false
-    let workouts: [WorkoutSession]
+    @ObservedObject var viewModel: WorkoutSummaryViewModel
 
     var body: some View {
         Button(action: {
+            viewModel.loadWorkouts() // Force refresh on tap
             showWorkoutList = true
         }) {
             HealthMetricCard(
                 title: "Workout Summary",
-                value: "Last \(workouts.count) workouts",
+                value: "Last \(viewModel.workouts.count) workouts", // ✅ Updated to use viewModel
                 icon: "figure.run",
                 color: .green
             )
         }
         .sheet(isPresented: $showWorkoutList) {
-            WorkoutListModal(workouts: workouts)
+            WorkoutListModal(viewModel: viewModel) // ✅ Pass viewModel
         }
     }
 }
 
 struct WorkoutListModal: View {
-    let workouts: [WorkoutSession]
+    @ObservedObject var viewModel: WorkoutSummaryViewModel // ✅ Use view model instead of static list
     @Environment(\.dismiss) private var dismiss
     @State private var selectedWorkout: WorkoutSession? = nil
 
     var body: some View {
         NavigationView {
-            List(workouts) { workout in
+            List(viewModel.workouts) { workout in // ✅ Access workouts via viewModel
                 VStack(alignment: .leading, spacing: 8) {
                     Text(formattedDateRange(start: workout.startTime, end: workout.endTime))
                         .font(.headline)
@@ -52,18 +53,10 @@ struct WorkoutListModal: View {
             }
             .sheet(item: $selectedWorkout) { workout in
                 WorkoutSummaryReportView(
-                    totalTime: Int(workout.duration),
-                    caloriesBurned: Int(workout.totalCalories),
-                    stepsWalked: workout.totalSteps,
-                    distance: workout.totalDistance,
-                    coreTemps: workout.coreTempPoints.map { $0.temp },
-                    heartRates: workout.heartRatePoints.map { Int($0.bpm) },
-                    caloriePoints: workout.caloriePoints,              // ✅ Add this
-                    distancePoints: workout.distancePoints,            // ✅ Add this
+                    workout: workout,
                     onDone: { selectedWorkout = nil }
                 )
             }
-
         }
     }
 

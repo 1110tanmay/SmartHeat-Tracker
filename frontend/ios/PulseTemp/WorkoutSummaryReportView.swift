@@ -5,45 +5,10 @@ struct WorkoutSummaryReportView: View {
     var onDone: () -> Void
 
     // New initializer to support live values from WorkoutSessionView
-    init(
-        totalTime: Int,
-        caloriesBurned: Int,
-        stepsWalked: Int,
-        distance: Double,
-        coreTemps: [Double],
-        heartRates: [Int],
-        caloriePoints: [CaloriePoint],      // ✅ add this
-        distancePoints: [DistancePoint],    // ✅ add this
-        onDone: @escaping () -> Void
-    ) {
-        let minTemp = coreTemps.min() ?? 0
-        let maxTemp = coreTemps.max() ?? 0
-        let avgTemp = coreTemps.isEmpty ? 0 : coreTemps.reduce(0, +) / Double(coreTemps.count)
-
-        let minHR = heartRates.min() ?? 0
-        let maxHR = heartRates.max() ?? 0
-        let avgHR = heartRates.isEmpty ? 0 : Double(heartRates.reduce(0, +)) / Double(heartRates.count)
-
-      self.workout = WorkoutSession(
-          id: UUID(),
-          startTime: Date().addingTimeInterval(-Double(totalTime)),
-          endTime: Date(),
-          totalSteps: stepsWalked,
-          totalDistance: distance,
-          totalCalories: Double(caloriesBurned),
-          averageHeartRate: avgHR,
-          maxHeartRate: Double(maxHR),
-          averageCoreTemp: avgTemp,
-          maxCoreTemp: maxTemp,
-          heartRatePoints: heartRates.map { HeartRatePoint(timestamp: Date(), bpm: Double($0)) },
-          coreTempPoints: coreTemps.map { CoreTempPoint(timestamp: Date(), temp: $0) },
-          stepPoints: [],
-          caloriePoints: caloriePoints,      // ✅ fix added
-                distancePoints: distancePoints     // ✅ fix added
-      )
-
-        self.onDone = onDone
-    }
+  init(workout: WorkoutSession, onDone: @escaping () -> Void) {
+      self.workout = workout
+      self.onDone = onDone
+  }
 
     var body: some View {
         ScrollView {

@@ -250,6 +250,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
   
   private func sendWorkoutSummaryToPhone() {
+    print("⌚️ Workout ended at \(Date()), preparing to send summary to iPhone")
       guard WCSession.default.isReachable else {
           print("📡 iPhone not reachable — cannot send workout summary.")
           return

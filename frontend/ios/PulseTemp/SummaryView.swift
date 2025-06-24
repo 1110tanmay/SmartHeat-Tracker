@@ -9,7 +9,7 @@ struct SummaryView: View {
 
     @State private var firstName: String = "User"
     @State private var wave = false
-
+    @StateObject private var workoutViewModel = WorkoutSummaryViewModel()
     // MARK: - Computed Properties
     var heartRate: Int {
         Int(healthKitManager.latestHeartRate ?? 75)
@@ -112,7 +112,7 @@ struct SummaryView: View {
                     }
 
                     // ✅ Replaced Activity Tile with Workout Summary Tile
-                    WorkoutSummaryTile(workouts: DatabaseManager.shared.fetchRecentWorkouts(limit: 3))
+                    WorkoutSummaryTile(viewModel: workoutViewModel)
 
                     // Calories
                     NavigationLink(destination: CaloriesDetailView()) {
@@ -169,6 +169,7 @@ struct SummaryView: View {
             }
             .onAppear {
                 healthKitManager.fetchAllMetrics()
+                workoutViewModel.loadWorkouts()  // ✅ Add this line
                 if let profile = DatabaseManager.shared.fetchUserProfile() {
                     self.firstName = profile.name
                 } else {
