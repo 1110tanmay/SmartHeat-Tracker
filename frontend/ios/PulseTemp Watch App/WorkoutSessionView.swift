@@ -8,9 +8,6 @@ struct WorkoutSessionView: View {
     @State private var showSummary = false
     @State private var showingQuestionnaire = false
 
-    // Tracking for summary
-    @State private var tempSamples: [Double] = []
-    @State private var heartRateSamples: [Int] = []
 
     var body: some View {
         NavigationStack {
@@ -92,12 +89,6 @@ struct WorkoutSessionView: View {
             .onAppear {
                 workoutManager.startWorkout()
             }
-            .onChange(of: workoutManager.coreTemp) { newTemp in
-                tempSamples.append(newTemp)
-            }
-            .onChange(of: workoutManager.heartRate) { newHR in
-                heartRateSamples.append(Int(newHR))
-            }
             .onReceive(workoutManager.$showQuestionnaire) { shouldShow in
                 if shouldShow {
                     showingQuestionnaire = true
@@ -120,8 +111,8 @@ struct WorkoutSessionView: View {
                     caloriesBurned: Int(workoutManager.activeEnergy),
                     stepsWalked: estimateSteps(from: workoutManager.distance),
                     distance: workoutManager.distance,
-                    coreTemps: tempSamples,
-                    heartRates: heartRateSamples,
+                    coreTemps: workoutManager.coreTempSamples,
+                    heartRates: workoutManager.heartRateSamples,
                     onDone: {
                         presentationMode.wrappedValue.dismiss()
                     }

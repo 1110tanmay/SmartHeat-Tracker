@@ -20,9 +20,9 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     @Published var showQuestionnaire: Bool = false
     @Published var coreTemp: Double = 0.0
     @Published var steps: Int = 0
+    @Published var heartRateSamples: [Int] = []
+    @Published var coreTempSamples: [Double] = []
 
-    private var heartRateSamples: [Double] = []
-    private var coreTempSamples: [Double] = []
     private var stepSamples: [Int] = []
   
     private var timerCancellable: AnyCancellable?
@@ -65,24 +65,26 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         }
     }
 
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-      DispatchQueue.main.async {
-          if let hr = message["heartRate"] as? Double {
-              self.heartRate = hr
-              self.heartRateSamples.append(hr)
-              print("❤️ Received heart rate from iPhone: \(hr) BPM")
-          }
-          if let temp = message["coreTemp"] as? Double {
-              self.coreTemp = temp
-              self.coreTempSamples.append(temp)
-              print("🌡️ Received core temp from iPhone: \(temp) °C")
-          }
-          if let steps = message["steps"] as? Int {
-              self.steps = steps
-              self.stepSamples.append(steps)
-          }
-      }
-  }
+  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {DispatchQueue.main.async {
+    if let hr = message["heartRate"] as? Double {
+        let bpm = Int(hr) // ✅ convert to Int once
+        self.heartRate = hr
+        self.heartRateSamples.append(bpm) // ✅ store as Int
+        print("❤️ Received heart rate from iPhone: \(bpm) BPM")
+    }
+
+    if let temp = message["coreTemp"] as? Double {
+        self.coreTemp = temp
+        self.coreTempSamples.append(temp)
+        print("🌡️ Received core temp from iPhone: \(temp) °C")
+    }
+
+    if let steps = message["steps"] as? Int {
+        self.steps = steps
+        self.stepSamples.append(steps)
+    }
+}
+}
 
     // MARK: - Send Questionnaire to iPhone
     func sendQuestionnaireToPhone(exertion: Int, hydration: Int, thermal: Int) {
@@ -251,51 +253,54 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
   
   private func sendWorkoutSummaryToPhone() {
     print("⌚️ Workout ended at \(Date()), preparing to send summary to iPhone")
-      guard WCSession.default.isReachable else {
-          print("📡 iPhone not reachable — cannot send workout summary.")
-          return
-      }
+    
+    guard WCSession.default.isReachable else {
+        print("📡 iPhone not reachable — cannot send workout summary.")
+        return
+    }
 
-      let formatter = ISO8601DateFormatter()
-      let startString = workoutStartDate.map { formatter.string(from: $0) } ?? ""
-      let endString = formatter.string(from: Date())
+    let formatter = ISO8601DateFormatter()
+    let startString = workoutStartDate.map { formatter.string(from: $0) } ?? ""
+    let endString = formatter.string(from: Date())
 
-      // ✅ Calculate actual stats
-      let coreMin = coreTempSamples.min() ?? coreTemp
-      let coreMax = coreTempSamples.max() ?? coreTemp
-      let coreAvg = coreTempSamples.isEmpty ? coreTemp : coreTempSamples.reduce(0, +) / Double(coreTempSamples.count)
+    // ✅ Calculate core temp stats
+    let coreMin = coreTempSamples.min() ?? coreTemp
+    let coreMax = coreTempSamples.max() ?? coreTemp
+    let coreAvg = coreTempSamples.isEmpty ? coreTemp : coreTempSamples.reduce(0, +) / Double(coreTempSamples.count)
 
-    let hrMin = heartRateSamples.min() ?? heartRate
-    let hrMax = heartRateSamples.max() ?? heartRate
+    // ✅ Calculate heart rate stats using [Int] samples
+    let hrMin = heartRateSamples.min() ?? Int(heartRate)
+    let hrMax = heartRateSamples.max() ?? Int(heartRate)
     let hrAvg = heartRateSamples.isEmpty
-        ? heartRate
-        : heartRateSamples.reduce(0, +) / Double(heartRateSamples.count)
+        ? Int(heartRate)
+        : heartRateSamples.reduce(0, +) / heartRateSamples.count
 
+    // ✅ Steps (fallback logic maintained)
+    let totalSteps = stepSamples.last ?? Int((distance * 1000) / 0.762)
 
-      let totalSteps = stepSamples.last ?? Int((distance * 1000) / 0.762)
+    let summary: [String: Any] = [
+        "type": "workout_summary",
+        "workoutId": workoutId.uuidString,
+        "startTime": startString,
+        "endTime": endString,
+        "calories": activeEnergy,
+        "steps": totalSteps,
+        "distance": distance,
+        "coreTempMin": coreMin,
+        "coreTempMax": coreMax,
+        "coreTempAvg": coreAvg,
+        "heartRateMin": hrMin,
+        "heartRateMax": hrMax,
+        "heartRateAvg": hrAvg // 👈 Now Int, safe to decode
+    ]
 
-      let summary: [String: Any] = [
-          "type": "workout_summary",
-          "workoutId": workoutId.uuidString,
-          "startTime": startString,
-          "endTime": endString,
-          "calories": activeEnergy,
-          "steps": totalSteps,
-          "distance": distance,
-          "coreTempMin": coreMin,
-          "coreTempMax": coreMax,
-          "coreTempAvg": coreAvg,
-          "heartRateMin": hrMin,
-          "heartRateMax": hrMax,
-          "heartRateAvg": hrAvg
-      ]
+    WCSession.default.sendMessage(summary, replyHandler: nil) { error in
+        print("🛑 Failed to send workout summary to iPhone: \(error.localizedDescription)")
+    }
 
-      WCSession.default.sendMessage(summary, replyHandler: nil) { error in
-          print("🛑 Failed to send workout summary to iPhone: \(error.localizedDescription)")
-      }
+    print("✅ Workout summary sent to iPhone: \(summary)")
+}
 
-      print("✅ Workout summary sent to iPhone: \(summary)")
-  }
 
 
 }
