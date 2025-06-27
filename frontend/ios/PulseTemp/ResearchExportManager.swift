@@ -26,26 +26,32 @@ class ResearchExportManager {
 
         for (index, workout) in workouts.enumerated() {
             csv += "Workout \(index + 1)\n"
-            csv += "Timestamp,Calories,Distance,Steps,Heart Rate,Temperature\n"
+            csv += "Timestamp,Heart Rate,Temperature\n"
 
             let rows = max(workout.stepPoints.count, workout.heartRatePoints.count, workout.coreTempPoints.count)
 
-            for i in 0..<rows {
-                let timestamp = workout.stepPoints[safe: i]?.timestamp ??
-                                workout.heartRatePoints[safe: i]?.timestamp ??
-                                workout.coreTempPoints[safe: i]?.timestamp ?? Date()
+          // ⭐️ FIXED MERGE-AND-SORT LOGIC ⭐️
 
-              let caloriePoint = DatabaseManager.shared.fetchClosestCaloriePoint(to: timestamp)
-              let distancePoint = DatabaseManager.shared.fetchClosestDistancePoint(to: timestamp)
+          // 1. Merge data by timestamp
+          var mergedData = [Date: (hr: Double?, temp: Double?)]()
 
-                let calories = caloriePoint?.calories ?? 0.0
-                let distance = distancePoint?.distance ?? 0.0
-                let steps = workout.stepPoints[safe: i]?.steps ?? 0
-                let heartRate = workout.heartRatePoints[safe: i]?.bpm ?? 0
-                let temp = workout.coreTempPoints[safe: i]?.temp ?? 0
+          for point in workout.heartRatePoints {
+              mergedData[point.timestamp, default: (nil, nil)].hr = point.bpm
+          }
+          for point in workout.coreTempPoints {
+              mergedData[point.timestamp, default: (nil, nil)].temp = point.temp
+          }
 
-                csv += "\(iso8601(timestamp)),\(calories),\(distance),\(steps),\(heartRate),\(temp)\n"
-            }
+          // 2. Sort all timestamps
+          let sortedTimestamps = mergedData.keys.sorted()
+
+          // 3. Write rows in chronological order
+          for timestamp in sortedTimestamps {
+              let hr = mergedData[timestamp]?.hr ?? 0
+              let temp = mergedData[timestamp]?.temp ?? 0
+              csv += "\(iso8601(timestamp)),\(hr),\(temp)\n"
+          }
+
 
             csv += "\nWorkout Summary\n"
             csv += "Metric,Value\n"

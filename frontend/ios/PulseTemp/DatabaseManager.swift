@@ -277,12 +277,12 @@ class DatabaseManager {
       calories: Double,
       steps: Int,
       distance: Double,
-      coreTempMin: Double,
-      coreTempMax: Double,
-      coreTempAvg: Double,
-      heartRateMin: Int,
-      heartRateMax: Int,
-      heartRateAvg: Int
+      coreTempMin: Double, // ← will be ignored
+      coreTempMax: Double, // ← will be ignored
+      coreTempAvg: Double, // ← will be ignored
+      heartRateMin: Int,   // ← will be ignored
+      heartRateMax: Int,   // ← will be ignored
+      heartRateAvg: Int    // ← will be ignored
   ) {
       let formatter = ISO8601DateFormatter()
       guard let start = formatter.date(from: startTime),
@@ -290,6 +290,24 @@ class DatabaseManager {
           print("🛑 Failed to parse date strings in insertWorkoutSummary")
           return
       }
+
+      // Fetch data from time-series tables between start and end
+      let coreTemps = fetchAllCoreTempPoints().filter {
+          $0.timestamp >= start && $0.timestamp <= end
+      }.map { $0.temp }
+
+      let heartRates = fetchAllHeartRatePoints().filter {
+          $0.timestamp >= start && $0.timestamp <= end
+      }.map { $0.bpm }
+
+      // Compute stats on the phone side (source of truth)
+      let ctMin = coreTemps.min() ?? 0
+      let ctMax = coreTemps.max() ?? 0
+      let ctAvg = coreTemps.isEmpty ? 0 : coreTemps.reduce(0, +) / Double(coreTemps.count)
+
+      let hrMin = heartRates.min() ?? 0
+      let hrMax = heartRates.max() ?? 0
+      let hrAvg = heartRates.isEmpty ? 0 : heartRates.reduce(0, +) / Double(heartRates.count)
 
       do {
           let insert = workoutSessions.insert(
@@ -299,17 +317,18 @@ class DatabaseManager {
               totalSteps <- steps,
               totalDistance <- distance,
               totalCalories <- calories,
-              averageHeartRate <- Double(heartRateAvg),
-              maxHeartRate <- Double(heartRateMax),
-              averageCoreTemp <- coreTempAvg,
-              maxCoreTemp <- coreTempMax
+              averageHeartRate <- hrAvg,
+              maxHeartRate <- hrMax,
+              averageCoreTemp <- ctAvg,
+              maxCoreTemp <- ctMax
           )
           try db.run(insert)
-          print("✅ Workout summary inserted for ID \(workoutId)")
+          print("✅ Workout summary inserted (calculated from time-series data) for ID \(workoutId)")
       } catch {
           print("🛑 Failed to insert workout summary: \(error)")
       }
   }
+
 
     // MARK: - Insert Questionnaire Response ✅
     func insertQuestionnaireResponse(workoutId: UUID, timestamp: String, exertion: Int, hydration: Int, thermal: Int) {

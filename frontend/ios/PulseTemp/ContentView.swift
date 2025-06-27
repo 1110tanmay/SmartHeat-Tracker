@@ -2,6 +2,10 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var profileImageOpacity: Double = 0.0 // 📌 New for animation
+  init() {
+      let _ = WatchConnectivityManager.shared // ✅ Ensures WatchConnectivity is initialized on launch
+  }
+
 
     var body: some View {
         TabView {

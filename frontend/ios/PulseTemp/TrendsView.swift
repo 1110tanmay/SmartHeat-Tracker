@@ -41,11 +41,16 @@ struct TrendsView: View {
 
                     Group {
                         // Core Temperature
-                        if !filteredCoreTemp.isEmpty {
-                            TrendChart(title: "Core Temperature Trends (°C)", color: .orange, data: filteredCoreTemp.map { ($0.timestamp, $0.temp) })
-                        } else {
-                            NoDataView(title: "Core Temperature")
-                        }
+                      if !filteredCoreTemp.isEmpty {
+                          TrendChart(
+                              title: "Core Temperature Trends (\(temperatureUnit))",
+                              color: .orange,
+                              data: filteredCoreTemp.map { ($0.timestamp, convertTemp($0.temp)) }
+                          )
+                      } else {
+                          NoDataView(title: "Core Temperature")
+                      }
+
 
                         // Heart Rate
                         if !filteredHeartRate.isEmpty {
@@ -129,6 +134,10 @@ struct TrendsView: View {
     private var filteredDistance: [DistancePoint] {
         healthKitManager.historicalDistance.filter { isWithinSelectedTimeframe($0.timestamp) }
     }
+  private func convertTemp(_ celsius: Double) -> Double {
+      return temperatureUnit == "°F" ? (celsius * 9 / 5) + 32 : celsius
+  }
+
 
     private func filterAllData() {
         // Just trigger recomputation when timeframe changes
@@ -140,11 +149,14 @@ struct TrendsView: View {
     }
 }
 
+
 // MARK: - TrendChart Component
 struct TrendChart: View {
     let title: String
     let color: Color
     let data: [(Date, Double)]
+
+    @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -152,13 +164,28 @@ struct TrendChart: View {
                 .font(.headline)
                 .padding(.leading)
 
-            Chart {
-                ForEach(Array(data.enumerated()), id: \.offset) { index, point in
-                    LineMark(
-                        x: .value("Time", point.0),
-                        y: .value("Value", point.1)
-                    )
-                    .foregroundStyle(color)
+            Group {
+                if title.contains("Core Temperature") {
+                    Chart {
+                        ForEach(Array(data.enumerated()), id: \.offset) { index, point in
+                            LineMark(
+                                x: .value("Time", point.0),
+                                y: .value("Value", point.1)
+                            )
+                            .foregroundStyle(color)
+                        }
+                    }
+                    .chartYScale(domain: temperatureUnit == "°F" ? 95.0...104.0 : 35.0...40.0)
+                } else {
+                    Chart {
+                        ForEach(Array(data.enumerated()), id: \.offset) { index, point in
+                            LineMark(
+                                x: .value("Time", point.0),
+                                y: .value("Value", point.1)
+                            )
+                            .foregroundStyle(color)
+                        }
+                    }
                 }
             }
             .frame(height: 200)
@@ -166,6 +193,8 @@ struct TrendChart: View {
         }
     }
 }
+
+
 
 // MARK: - NoData View
 struct NoDataView: View {

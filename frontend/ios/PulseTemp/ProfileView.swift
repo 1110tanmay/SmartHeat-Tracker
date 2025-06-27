@@ -379,3 +379,4 @@ struct MailView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {}
 }
 
+
