@@ -61,8 +61,8 @@ struct SummaryView: View {
 
                         Text("👋")
                             .font(.title2)
-                            .rotationEffect(.degrees(wave ? 20 : -20))
-                            .animation(Animation.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: wave)
+                            .rotationEffect(.degrees(wave ? 3 : -3))
+                            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: wave)
                     }
                     .padding(.horizontal)
 

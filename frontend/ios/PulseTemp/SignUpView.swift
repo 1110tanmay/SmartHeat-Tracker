@@ -44,17 +44,32 @@ struct SignUpView: View {
                     }
                 }
 
-                Section {
-                    Button("Submit") {
-                        if isFormValid() {
-                            saveData()
-                            showAlert = true
-                        } else {
-                            showValidationError = true
-                        }
+              Section {
+                HStack {
+                  Spacer()
+                  Button(action: {
+                    if isFormValid() {
+                      saveData()
+                      showAlert = true
+                    } else {
+                      showValidationError = true
                     }
-                    .buttonStyle(.borderedProminent)
+                  }) {
+                    Text("Submit")
+                      .font(.headline)
+                      .foregroundColor(.white)
+                      .frame(maxWidth: .infinity)
+                      .padding()
+                      .background(Color.accentColor)
+                      .cornerRadius(12)
+                      .shadow(color: .gray.opacity(0.3), radius: 4, x: 0, y: 2)
+                  }
+                  .padding(.horizontal, 16)
+                  Spacer()
                 }
+                .listRowBackground(Color.clear)
+              }
+
             }
             .navigationTitle("Sign Up")
             .alert("Success", isPresented: $showAlert) {

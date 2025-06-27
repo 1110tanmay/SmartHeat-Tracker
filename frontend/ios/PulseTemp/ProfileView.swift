@@ -111,69 +111,112 @@ struct ProfileView: View {
 
                 // 📌 Data Sharing Section
                 Section(header: Text("Data Sharing")) {
-                  Button("📤 Share My Data for Research") {
-                      let profile = DatabaseManager.shared.fetchUserProfile()
-                      let workouts = DatabaseManager.shared.fetchRecentWorkouts()
+                  HStack {
+                      Spacer()
+                      Button(action: {
+                          // ✅ Keep your full export & email logic here
+                          let profile = DatabaseManager.shared.fetchUserProfile()
+                          let workouts = DatabaseManager.shared.fetchRecentWorkouts()
 
-                      print("✅ Profile loaded: \(String(describing: profile))")
-                      print("✅ Workouts loaded: \(workouts.count) entries")
+                          print("✅ Profile loaded: \(String(describing: profile))")
+                          print("✅ Workouts loaded: \(workouts.count) entries")
 
-                      guard let profile = profile,
-                            let fileURL = ResearchExportManager.shared.exportToCSV(userProfile: profile, workouts: workouts) else {
-                          print("❌ Export failed or profile missing")
-                          return
-                      }
-
-                      print("✅ Saved XLSX to: \(fileURL.path)")
-
-                      // ⏱ Check if file exists and log size
-                      do {
-                          let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-                          if let fileSize = attributes[.size] as? UInt64 {
-                              print("✅ File exists with size: \(fileSize) bytes")
-                          } else {
-                              print("⚠️ Could not get file size.")
+                          guard let profile = profile,
+                                let fileURL = ResearchExportManager.shared.exportToCSV(userProfile: profile, workouts: workouts) else {
+                              print("❌ Export failed or profile missing")
+                              return
                           }
-                      } catch {
-                          print("❌ Error getting file attributes: \(error.localizedDescription)")
+
+                          print("✅ Saved XLSX to: \(fileURL.path)")
+
+                          do {
+                              let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+                              if let fileSize = attributes[.size] as? UInt64 {
+                                  print("✅ File exists with size: \(fileSize) bytes")
+                              } else {
+                                  print("⚠️ Could not get file size.")
+                              }
+                          } catch {
+                              print("❌ Error getting file attributes: \(error.localizedDescription)")
+                          }
+
+                          DispatchQueue.global().async {
+                              do {
+                                  let fileData = try Data(contentsOf: fileURL)
+                                  let mail = MailData(
+                                      recipients: ["tshelar@asu.edu"],
+                                      subject: "Smart Heat Tracker Research Data",
+                                      message: "Attached is the anonymized data for research.",
+                                      attachments: [
+                                          .init(data: fileData, mimeType: "text/csv", fileName: fileURL.lastPathComponent)
+                                      ]
+                                  )
+
+                                  DispatchQueue.main.async {
+                                      self.mailData = mail
+                                  }
+                              } catch {
+                                  print("❌ Could not read CSV file data. Error: \(error.localizedDescription)")
+                              }
+                          }
+                      }) {
+                          Text("Share My Data for Research")
+                              .fontWeight(.semibold)
+                              .padding(.horizontal, 32)
+                              .padding(.vertical, 12)
+                              .background(Color.accentColor)
+                              .foregroundColor(.white)
+                              .cornerRadius(10)
                       }
-
-                      // Try loading file data
-                    DispatchQueue.global().async {
-                        do {
-                            let fileData = try Data(contentsOf: fileURL)
-                            let mail = MailData(
-                                recipients: ["tshelar@asu.edu"],
-                                subject: "Smart Heat Tracker Research Data",
-                                message: "Attached is the anonymized data for research.",
-                                attachments: [
-                                    .init(data: fileData, mimeType: "text/csv", fileName: fileURL.lastPathComponent)
-                                ]
-                            )
-
-                            DispatchQueue.main.async {
-                                self.mailData = mail
-                            }
-                        } catch {
-                            print("❌ Could not read CSV file data. Error: \(error.localizedDescription)")
-                        }
-                    }
-
+                      Spacer()
                   }
+                  .listRowBackground(Color.clear)
+                  .listRowSeparator(.hidden)
 
 .foregroundColor(.blue)
 
-                    Button("Reset Profile", role: .destructive) {
-                        showResetAlert = true
-                    }
+                  HStack {
+                      Spacer()
+                      Button(action: {
+                          showResetAlert = true
+                      }) {
+                          Text("Reset Profile")
+                              .fontWeight(.semibold)
+                              .padding(.horizontal, 32)
+                              .padding(.vertical, 12)
+                              .foregroundColor(.red)
+                              .overlay(
+                                  RoundedRectangle(cornerRadius: 10)
+                                      .stroke(Color.red, lineWidth: 1)
+                              )
+                      }
+                      Spacer()
+                  }
+                  .listRowBackground(Color.clear)
+
                 }
 
-                if isEditing {
-                    Button("Save") {
-                        saveProfile()
-                        isEditing = false
-                    }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
-                }
+              if isEditing {
+                  Section {
+                      HStack {
+                          Spacer()
+                          Button(action: {
+                              saveProfile()
+                              isEditing = false
+                          }) {
+                              Text("Save")
+                                  .fontWeight(.semibold)
+                                  .padding(.horizontal, 40)
+                                  .padding(.vertical, 12)
+                                  .background(Color.accentColor)
+                                  .foregroundColor(.white)
+                                  .cornerRadius(10)
+                          }
+                          Spacer()
+                      }
+                      .listRowBackground(Color.clear)
+                  }
+              }
             }
             .navigationTitle("Profile")
             .toolbar {
