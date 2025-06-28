@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 
 struct WorkoutSummaryReportView: View {
     var totalTime: Int
@@ -10,72 +11,93 @@ struct WorkoutSummaryReportView: View {
     var onDone: () -> Void
 
     var body: some View {
-        ScrollView {
-            ZStack {
-                LinearGradient(
-                    gradient: Gradient(colors: [.black, .green.opacity(0.6)]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .edgesIgnoringSafeArea(.all)
+        ZStack {
+            // 🔥 Consistent Brand Gradient
+            LinearGradient(
+                gradient: Gradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.1), Color(red: 0.85, green: 0.2, blue: 0.1)]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
-                VStack(spacing: 16) {
+            ScrollView {
+                VStack(spacing: 18) {
                     Text("Workout Summary")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.green)
-                        .padding(.top)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.top, 16)
 
-                    summaryRow(title: "Total Time", value: "\(totalTime) sec")
-                    summaryRow(title: "Calories Burned", value: "\(caloriesBurned) kcal")
-                    summaryRow(title: "Steps Walked", value: "\(stepsWalked)")
-                    summaryRow(title: "Distance Walked", value: String(format: "%.2f km", distance))
+                    summaryTile(icon: "clock", title: "Total Time", value: "\(totalTime) sec")
+                    summaryTile(icon: "flame", title: "Calories Burned", value: "\(caloriesBurned) kcal")
+                    summaryTile(icon: "figure.walk", title: "Steps Walked", value: "\(stepsWalked)")
+                    summaryTile(icon: "map", title: "Distance Walked", value: String(format: "%.2f km", distance))
 
-                    Divider()
-                        .background(Color.white)
+                    Divider().opacity(0.2)
 
-                    summaryRow(title: "Lowest Temp", value: String(format: "%.1f°C", coreTemps.min() ?? 0))
-                    summaryRow(title: "Highest Temp", value: String(format: "%.1f°C", coreTemps.max() ?? 0))
-                    summaryRow(title: "Average Temp", value: String(format: "%.1f°C", average(coreTemps)))
+                    summaryTile(icon: "thermometer", title: "Lowest Temp", value: String(format: "%.1f°C", coreTemps.min() ?? 0))
+                    summaryTile(icon: "thermometer", title: "Highest Temp", value: String(format: "%.1f°C", coreTemps.max() ?? 0))
+                    summaryTile(icon: "thermometer", title: "Average Temp", value: String(format: "%.1f°C", average(coreTemps)))
 
-                    Divider()
-                        .background(Color.white)
+                    Divider().opacity(0.2)
 
-                    summaryRow(title: "Lowest HR", value: "\(heartRates.min() ?? 0) BPM")
-                    summaryRow(title: "Highest HR", value: "\(heartRates.max() ?? 0) BPM")
-                    summaryRow(title: "Average HR", value: String(format: "%.0f BPM", average(heartRates)))
+                    summaryTile(icon: "heart.fill", title: "Lowest HR", value: "\(heartRates.min() ?? 0) BPM")
+                    summaryTile(icon: "heart.fill", title: "Highest HR", value: "\(heartRates.max() ?? 0) BPM")
+                    summaryTile(icon: "heart.fill", title: "Average HR", value: String(format: "%.0f BPM", average(heartRates)))
+
+                    Spacer(minLength: 12)
 
                   Button(action: {
                       onDone()
                   }) {
-                      Text("Done")
-                          .font(.headline)
+                      Label("Done", systemImage: "checkmark")
+                          .font(.system(size: 16, weight: .semibold))
+                          .foregroundColor(Color(red: 0.85, green: 0.2, blue: 0.1))
                           .frame(maxWidth: .infinity)
                           .padding(.vertical, 10)
-                          .background(Color.blue)
-                          .foregroundColor(.white)
-                          .cornerRadius(14)
-                          .padding(.horizontal)
+                          .background(
+                              RoundedRectangle(cornerRadius: 18)
+                                  .fill(Color.white)
+                          )
                   }
-
+                  .buttonStyle(PlainButtonStyle())
+                  .shadow(color: Color.black.opacity(0.15), radius: 3, x: 0, y: 2)
+                  .padding(.horizontal, 16)
+                  .padding(.bottom, 24)
                 }
+                .frame(minHeight: WKInterfaceDevice.current().screenBounds.height)
                 .padding(.horizontal, 16)
-                .padding(.bottom, 24)
             }
         }
     }
 
-    func summaryRow(title: String, value: String) -> some View {
-        HStack {
-            Text(title + ":")
-                .foregroundColor(.gray)
+    // MARK: - UI Components
+    func summaryTile(icon: String, title: String, value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundColor(.yellow)
+                .font(.system(size: 16))
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.8))
+                Text(value)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+
             Spacer()
-            Text(value)
-                .foregroundColor(.white)
         }
-        .font(.system(size: 16, weight: .medium))
-        .padding(.horizontal)
+        .padding()
+        .frame(maxWidth: .infinity, minHeight: 60)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.12))
+        )
     }
 
+    // MARK: - Helpers
     func average<T: BinaryFloatingPoint>(_ values: [T]) -> T {
         guard !values.isEmpty else { return 0 }
         return values.reduce(0, +) / T(values.count)
@@ -85,17 +107,5 @@ struct WorkoutSummaryReportView: View {
         guard !values.isEmpty else { return 0 }
         return Double(values.reduce(0, +)) / Double(values.count)
     }
-}
-
-#Preview {
-    WorkoutSummaryReportView(
-        totalTime: 300,
-        caloriesBurned: 120,
-        stepsWalked: 1000,
-        distance: 0.85,
-        coreTemps: [37.2, 37.5, 37.6],
-        heartRates: [80, 83, 85],
-        onDone: {}
-    )
 }
 

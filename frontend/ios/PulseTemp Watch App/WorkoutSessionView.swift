@@ -8,82 +8,153 @@ struct WorkoutSessionView: View {
     @State private var showSummary = false
     @State private var showingQuestionnaire = false
 
-
     var body: some View {
         NavigationStack {
-            ScrollView {
-                ZStack {
-                    LinearGradient(
-                        gradient: Gradient(colors: [.black, .green.opacity(0.6)]),
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .edgesIgnoringSafeArea(.all)
+            ZStack {
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(red: 1.0, green: 0.56, blue: 0.0), Color(red: 1.0, green: 0.27, blue: 0.0)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .edgesIgnoringSafeArea(.all)
 
-                    VStack(spacing: 16) {
-                        // Timer
-                        Text(String(format: "%02d:%02d",
-                                    Int(workoutManager.elapsedTime) / 60,
-                                    Int(workoutManager.elapsedTime) % 60))
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundColor(.yellow)
-                        .monospacedDigit()
-                        .padding(.top)
+                ScrollView {
+                  VStack(spacing: 20) {
+                    // Exit Button
+                    
+                    
+                    // Timer
+                    Text(String(format: "%02d:%02d",
+                                Int(workoutManager.elapsedTime) / 60,
+                                Int(workoutManager.elapsedTime) % 60))
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.white)
+                    
+                    // Core Temp Tile
+                    VStack(alignment: .center, spacing: 6) {
+                      HStack(alignment: .center, spacing: 12) {
+                        Image(systemName: "thermometer")
+                          .foregroundColor(.orange)
+                          .font(.system(size: 20))
+                          .frame(width: 28)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                          Text("Core Temp")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.8))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                          
+                          Text(String(format: "%.2f°C", workoutManager.coreTemp))
+                            .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                        }
+                        
+                        Spacer()
+                      }
+                      .padding()
+                      .frame(maxWidth: .infinity, minHeight: 60) // <- Prevents stretch
+                      .background(
+                        RoundedRectangle(cornerRadius: 18)
+                          .fill(Color.white.opacity(0.12)) // <- Matches the clean tile style
+                      )
+                      .cornerRadius(18)
+                      .shadow(color: Color.orange.opacity(0.2), radius: 4, x: 0, y: 2)
+                    }
+                    // Heart Rate Tile
+                    HStack(alignment: .center, spacing: 12) {
+                      Image(systemName: "heart.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 20))
+                        .frame(width: 28)
+                      
+                      VStack(alignment: .leading, spacing: 2) {
+                        Text("Heart Rate")
+                          .font(.caption)
+                          .foregroundColor(.white.opacity(0.8))
+                          .lineLimit(1)
+                          .minimumScaleFactor(0.6)
+                        
+                        Text("\(Int(workoutManager.heartRate)) BPM")
+                          .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                          .foregroundColor(.white)
+                          .lineLimit(1)
+                          .minimumScaleFactor(0.5)
+                      }
+                      
+                      Spacer()
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, minHeight: 60) // 🔧 Critical to avoid vertical zoom
+                    .background(
+                      RoundedRectangle(cornerRadius: 18)
+                        .fill(Color.white.opacity(0.12))
+                    )
+                    .cornerRadius(18)
+                    .shadow(color: Color.red.opacity(0.2), radius: 4, x: 0, y: 2)
+                  
 
                         // Metric Rings
                         HStack(spacing: 16) {
-                            metricRing(title: "CAL", value: workoutManager.activeEnergy, color: .red)
-                            metricRing(title: "STEPS", value: Double(estimateSteps(from: workoutManager.distance)), color: .green)
-                            metricRing(title: "KM", value: workoutManager.distance, color: .blue)
+                          metricRing(
+                              title: "CAL",
+                              value: workoutManager.activeEnergy,
+                              color: Color(red: 1.0, green: 0.22, blue: 0.31)
+                          )
+                          metricRing(
+                              title: "STEPS",
+                              value: Double(estimateSteps(from: workoutManager.distance)),
+                              color: Color(red: 0.0, green: 0.76, blue: 0.27)
+                          )
+                          metricRing(
+                              title: "KM",
+                              value: workoutManager.distance,
+                              color: Color(red: 0.0, green: 0.48, blue: 1.0)
+                          )
                         }
                         .padding(.horizontal)
 
-                        // Temp & HR
-                        VStack(spacing: 6) {
-                            HStack {
-                                Text("🌡️ Core Temp:")
-                                Spacer()
-                              Text(String(format: "%.2f°C", workoutManager.coreTemp)) //Showing real values now.
-                            }
-                            HStack {
-                                Text("❤️ Heart Rate:")
-                                Spacer()
-                                Text("\(Int(workoutManager.heartRate)) BPM")
-                            }
+                        // Pause and End buttons stacked
+                      VStack(spacing: 12)  {
+                        // Pause / Resume Button
+                        Button(action: {
+                            isPaused.toggle()
+                            isPaused ? workoutManager.pauseWorkout() : workoutManager.resumeWorkout()
+                        }) {
+                            Label(isPaused ? "Resume" : "Pause", systemImage: "pause.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
+                                .foregroundColor(.black)
                         }
-                        .padding(.horizontal)
-                        .foregroundColor(.white)
+                        .buttonStyle(PlainButtonStyle())
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 2)
 
-                        // Action buttons
-                        HStack(spacing: 16) {
-                            Button(action: {
-                                isPaused.toggle()
-                                isPaused ? workoutManager.pauseWorkout() : workoutManager.resumeWorkout()
-                            }) {
-                                Label(isPaused ? "Resume" : "Pause", systemImage: "pause.fill")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.yellow))
-                                    .foregroundColor(.black)
-                            }
-
-                            Button(action: {
-                                workoutManager.endWorkout()
-                                showSummary = true
-                            }) {
-                                Label("End", systemImage: "xmark.circle.fill")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.red))
-                                    .foregroundColor(.white)
-                            }
+                        // End Button
+                        Button(action: {
+                            workoutManager.endWorkout()
+                            showSummary = true
+                        }) {
+                            Label("End", systemImage: "xmark.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
+                                .foregroundColor(Color(red: 0.85, green: 0.2, blue: 0.1)) // Match Start button red
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 20)
+                        .buttonStyle(PlainButtonStyle())
+                        .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 2)
                     }
-                    .padding(.top)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 12)
+
+                       // .padding(.horizontal)
+                        //.padding(.bottom)
+                    }
                 }
             }
             .onAppear {
@@ -92,7 +163,7 @@ struct WorkoutSessionView: View {
             .onReceive(workoutManager.$showQuestionnaire) { shouldShow in
                 if shouldShow {
                     showingQuestionnaire = true
-                    workoutManager.showQuestionnaire = false // reset trigger
+                    workoutManager.showQuestionnaire = false
                 }
             }
             .sheet(isPresented: $showingQuestionnaire) {
@@ -122,28 +193,48 @@ struct WorkoutSessionView: View {
     }
 
     func estimateSteps(from km: Double) -> Int {
-        return Int((km * 1000) / 0.762) // average stride length ≈ 76.2 cm
+        return Int((km * 1000) / 0.762)
     }
 
-    func metricRing(title: String, value: Double, color: Color) -> some View {
-        VStack {
-            ZStack {
-                Circle()
-                    .stroke(color.opacity(0.2), lineWidth: 10)
-                    .frame(width: 50, height: 50)
-                Circle()
-                    .trim(from: 0, to: min(value / 100.0, 1.0))
-                    .stroke(color, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .frame(width: 50, height: 50)
-                Text(String(format: "%.0f", value))
-                    .font(.footnote)
-                    .foregroundColor(.white)
-            }
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(color)
-        }
-    }
+  func metricRing(title: String, value: Double, color: Color) -> some View {
+    let ringSize: CGFloat = 42
+    let ringWidth: CGFloat = 6
+
+
+      return VStack(spacing: 6) {
+          ZStack {
+              // Background Circle
+              Circle()
+                  .stroke(color.opacity(0.2), lineWidth: ringWidth)
+                  .frame(width: ringSize, height: ringSize)
+
+              // Foreground Gradient Stroke
+              Circle()
+                  .trim(from: 0, to: min(value / 100.0, 1.0))
+                  .stroke(
+                      AngularGradient(
+                          gradient: Gradient(colors: [color.opacity(0.6), color]),
+                          center: .center
+                      ),
+                      style: StrokeStyle(lineWidth: ringWidth, lineCap: .round)
+                  )
+                  .rotationEffect(.degrees(-90))
+                  .frame(width: ringSize, height: ringSize)
+                  .shadow(color: color.opacity(0.5), radius: 4, x: 0, y: 0)
+
+              // Metric Value
+              Text(String(format: "%.0f", value))
+                  .font(.footnote)
+                  .foregroundColor(.white)
+                  .monospacedDigit()
+          }
+
+          // Title Label
+          Text(title)
+              .font(.caption2)
+              .foregroundColor(.white)
+      }
+  }
+
 }
 

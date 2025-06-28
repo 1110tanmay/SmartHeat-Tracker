@@ -962,7 +962,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "PulseTemp-Watch-App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = PulseTemp;
+				INFOPLIST_KEY_CFBundleDisplayName = "SmartHeat-Tracker";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app needs access to read your heart rate and activity data.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app uses HealthKit to collect workout data like heart rate and steps.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
@@ -1012,7 +1012,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "PulseTemp-Watch-App-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = PulseTemp;
+				INFOPLIST_KEY_CFBundleDisplayName = "SmartHeat-Tracker";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "This app needs access to read your heart rate and activity data.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "This app uses HealthKit to collect workout data like heart rate and steps.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
