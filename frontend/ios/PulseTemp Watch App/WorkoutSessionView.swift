@@ -106,7 +106,7 @@ struct WorkoutSessionView: View {
                           )
                           metricRing(
                               title: "STEPS",
-                              value: Double(estimateSteps(from: workoutManager.distance)),
+                              value: Double(workoutManager.steps),
                               color: Color(red: 0.0, green: 0.76, blue: 0.27)
                           )
                           metricRing(
@@ -180,7 +180,7 @@ struct WorkoutSessionView: View {
                 WorkoutSummaryReportView(
                     totalTime: Int(workoutManager.elapsedTime),
                     caloriesBurned: Int(workoutManager.activeEnergy),
-                    stepsWalked: estimateSteps(from: workoutManager.distance),
+                    stepsWalked: workoutManager.steps,
                     distance: workoutManager.distance,
                     coreTemps: workoutManager.coreTempSamples,
                     heartRates: workoutManager.heartRateSamples,
@@ -192,9 +192,6 @@ struct WorkoutSessionView: View {
         }
     }
 
-    func estimateSteps(from km: Double) -> Int {
-        return Int((km * 1000) / 0.762)
-    }
 
   func metricRing(title: String, value: Double, color: Color) -> some View {
     let ringSize: CGFloat = 42

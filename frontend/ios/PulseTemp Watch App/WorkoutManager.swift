@@ -10,6 +10,7 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    private var stepQuery: HKStatisticsCollectionQuery? // <-- ADD THIS LINE
 
     @Published var workoutId: UUID = UUID()
     @Published var workoutStartDate: Date?
@@ -128,7 +129,9 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
 
 
     // MARK: - Workout Session Management
-    
+  
+  // In WorkoutManager.swift
+
   func startWorkout() {
       workoutId = UUID()
 
@@ -139,22 +142,30 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
       do {
           session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
           builder = session?.associatedWorkoutBuilder()
+          
+          // Use the basic data source, as the builder isn't providing steps
+          builder?.dataSource = HKLiveWorkoutDataSource(
+              healthStore: healthStore,
+              workoutConfiguration: config
+          )
+          
           session?.delegate = self
           builder?.delegate = self
-          builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: config)
+          
+          let startDate = Date()
+          self.workoutStartDate = startDate
+          
+          session?.startActivity(with: startDate)
+          builder?.beginCollection(withStart: startDate) { success, error in
+              if let error = error {
+                  print("🛑 beginCollection failed: \(error.localizedDescription)")
+              } else {
+                  print("✅ beginCollection succeeded")
+              }
+          }
 
-        workoutStartDate = Date()
-        do{
-          try session?.startActivity(with: workoutStartDate!)
-          print("✅ Workout session started")}
-        catch{print("🛑 Failed to start workout session: \(error.localizedDescription)")}
-        builder?.beginCollection(withStart: workoutStartDate!) { success, error in
-            if let error = error {
-                print("🛑 beginCollection failed: \(error.localizedDescription)")
-            } else {
-                print("✅ beginCollection succeeded")
-            }
-        }
+          // --- ADD THIS LINE TO START OUR CUSTOM STEP QUERY ---
+          startStepQuery(from: startDate)
 
           startTimer()
           startQuestionnaireTimer()
@@ -163,6 +174,54 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
           print("🛑 Failed to start workout: \(error.localizedDescription)")
       }
   }
+  
+  // In WorkoutManager.swift, add this entire new function
+
+  private func startStepQuery(from startDate: Date) {
+      let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil, options: .strictStartDate)
+
+      stepQuery = HKStatisticsCollectionQuery(
+          quantityType: stepType,
+          quantitySamplePredicate: predicate,
+          options: .cumulativeSum,
+          anchorDate: startDate,
+          intervalComponents: DateComponents(day: 1)
+      )
+
+      // Required initial handler
+      stepQuery!.initialResultsHandler = { query, collection, error in
+          guard let statistics = collection?.statistics().last,
+                let sum = statistics.sumQuantity() else {
+              return
+          }
+
+          DispatchQueue.main.async {
+              let newSteps = sum.doubleValue(for: .count())
+              self.steps = Int(newSteps)
+              print("👣 Steps Initial Total via Query: \(self.steps)")
+          }
+      }
+
+      // Live update handler
+      stepQuery!.statisticsUpdateHandler = { query, statistics, collection, error in
+          guard let statistics = statistics,
+                let sum = statistics.sumQuantity() else {
+              return
+          }
+
+          DispatchQueue.main.async {
+              let newSteps = sum.doubleValue(for: .count())
+              self.steps = Int(newSteps)
+              print("👣 Steps Updated via Query: \(self.steps)")
+          }
+      }
+
+      healthStore.execute(stepQuery!)
+  }
+
+
+  // In WorkoutManager.swift
 
   func endWorkout() {
       session?.end()
@@ -170,10 +229,15 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
           self.builder?.finishWorkout { _, _ in }
       }
 
+      // --- ADD THESE LINES TO STOP OUR CUSTOM STEP QUERY ---
+      if let query = self.stepQuery {
+          healthStore.stop(query)
+      }
+
       timerCancellable?.cancel()
       questionnaireTimer?.invalidate()
       notificationSent = false
-      sendWorkoutSummaryToPhone() //To send data to iPhonw
+      sendWorkoutSummaryToPhone()
   }
 
     func pauseWorkout() {
@@ -321,41 +385,54 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate
+// ✅ FINAL AND CORRECT VERSION ✅
+// MARK: - HKLiveWorkoutBuilderDelegate
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
     func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
 
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        
+        // You can use this to see what data HealthKit is giving you
+        print("HKLiveWorkoutBuilderDelegate received data for types: \(collectedTypes.map { $0.identifier })")
+
         for type in collectedTypes {
             guard let quantityType = type as? HKQuantityType,
                   let statistics = builder?.statistics(for: quantityType) else { continue }
 
-          switch quantityType {
-          case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
-              activeEnergy = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-            print("🔥 Active Energy: \(activeEnergy) kcal")
-            
-          case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
-              let meters = statistics.sumQuantity()?.doubleValue(for: .meter()) ?? 0
-              distance = meters / 1000
-            print("📏 Distance: \(distance) km")
+            switch quantityType {
+            case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
+                let newEnergy = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                DispatchQueue.main.async {
+                    self.activeEnergy = newEnergy
+                    print("🔥 Active Energy: \(self.activeEnergy) kcal")
+                }
+                
+            case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
+                let meters = statistics.sumQuantity()?.doubleValue(for: .meter()) ?? 0
+                DispatchQueue.main.async {
+                    self.distance = meters / 1000
+                    print("📏 Distance: \(self.distance) km")
+                }
 
-          case HKQuantityType.quantityType(forIdentifier: .bodyTemperature):
-              let temp = statistics.mostRecentQuantity()?.doubleValue(for: .degreeCelsius()) ?? 0
-              if temp >= 37.8, !notificationSent {
-                  sendCoreTempAlertNotification()
-                  notificationSent = true
-              }
+            case HKQuantityType.quantityType(forIdentifier: .bodyTemperature):
+                let temp = statistics.mostRecentQuantity()?.doubleValue(for: .degreeCelsius()) ?? 0
+                if temp >= 37.8, !notificationSent {
+                    sendCoreTempAlertNotification()
+                    notificationSent = true
+                }
 
-          case HKQuantityType.quantityType(forIdentifier: .stepCount):
-              let stepCount = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
-              self.steps = Int(stepCount)
-            print("👣 Steps: \(self.steps)")
+            // Correctly positioned as its own case
+            case HKQuantityType.quantityType(forIdentifier: .stepCount):
+                let newSteps = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                DispatchQueue.main.async {
+                    self.steps = Int(newSteps)
+                    print("👣 Steps: \(self.steps)")
+                }
 
-          default:
-              break
-          }
-
+            default:
+                break
+            }
         }
     }
 }
