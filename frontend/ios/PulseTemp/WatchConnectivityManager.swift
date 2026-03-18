@@ -1,13 +1,12 @@
 import Foundation
 import WatchConnectivity
 
-class WatchConnectivityManager: NSObject, WCSessionDelegate, ObservableObject {
-    static let shared = WatchConnectivityManager()
-    private var timer: Timer?
+  class WatchConnectivityManager: NSObject, WCSessionDelegate, ObservableObject {
+  static let shared = WatchConnectivityManager()
+  private let ecTempCalculator = ECTempCalculator()
     
-  // ✅ Add these to make values observable in SwiftUI views
-     @Published var heartRate: Double = 0.0
-     @Published var coreTemp: Double = 0.0
+    @Published var heartRate: Double = 0.0
+    @Published var coreTemp: Double = 0.0
   
     private override init() {
         super.init()
@@ -20,68 +19,60 @@ class WatchConnectivityManager: NSObject, WCSessionDelegate, ObservableObject {
         session.delegate = self
         session.activate()
     }
+    func updateWatchApplicationContext(hr: Double, temp: Double) {
+        guard WCSession.default.activationState == .activated else {
+            print("🛑 IPHONE: WCSession is not activated for context update.")
+            return
+        }
 
-    // MARK: - Start Sending Sensor Data
-    func startSendingSensorData() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
-            self.sendLiveSensorData()
+        let context: [String: Any] = [
+            "heartRate": hr,
+            "coreTemp": temp
+        ]
+
+        do {
+            try WCSession.default.updateApplicationContext(context)
+            print("✅ IPHONE: Sent on-demand context to watch - HR: \(hr), Temp: \(temp)")
+        } catch {
+            print("🛑 IPHONE: Error sending context: \(error.localizedDescription)")
         }
     }
 
-    // MARK: - Stop Sending Sensor Data
-    func stopSendingSensorData() {
-        timer?.invalidate()
-        timer = nil
+    func sendLiveWorkoutData(hr: Double, temp: Double) {
+           guard WCSession.default.isReachable else {
+               return
+           }
+
+           let message: [String: Any] = [
+               "type": "live_workout_data",
+               "heartRate": hr,
+               "coreTemp": temp
+           ]
+
+           WCSession.default.sendMessage(message, replyHandler: nil) { error in
+               print("🛑 IPHONE: Failed to send live workout data: \(error.localizedDescription)")
+           }
+       }
+    
+    func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        print("📱 WCSession received a context, but it is not being used for the live HR loop: \(applicationContext)")
     }
-
-    // MARK: - Send Live Sensor Data to Watch
-  // MARK: - Send Live Sensor Data to Watch
-  private func sendLiveSensorData() {
-      let timestamp = Date()
-
-      // ✅ Send heart rate only if valid
-      if let heartRate = HealthKitManager.shared.latestHeartRate {
-          DatabaseManager.shared.insertHeartRatePoint(HeartRatePoint(timestamp: timestamp, bpm: heartRate))
-          DispatchQueue.main.async { self.heartRate = heartRate }
-
-          if WCSession.default.isReachable {
-              WCSession.default.sendMessage(["heartRate": heartRate], replyHandler: nil)
-          }
-      }
-
-      // ✅ Send core temp only if valid (prevents 0.0 bug)
-      if let coreTemp = HealthKitManager.shared.latestCoreTemp {
-          DatabaseManager.shared.insertCoreTempPoint(CoreTempPoint(timestamp: timestamp, temp: coreTemp))
-          DispatchQueue.main.async { self.coreTemp = coreTemp }
-
-          if WCSession.default.isReachable {
-              WCSession.default.sendMessage(["coreTemp": coreTemp], replyHandler: nil)
-          }
-      }
-  }
-
-
-
-
-
-    // MARK: - Receive Messages from Watch
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
-        DispatchQueue.main.async {
-            if let type = message["type"] as? String {
-                switch type {
-                case "questionnaire":
-                    self.handleQuestionnaire(message)
-                case "workout_summary":
-                    self.handleWorkoutSummary(message)
-                default:
-                    print("⚠️ Unknown message type: \(type)")
-                }
-            }
-        }
-    }
+      DispatchQueue.main.async {
+          // Check for the "type" key to know what to do
+          if let type = message["type"] as? String, type == "live_workout_data" {
+              // This is our new case for live data
+              self.handleLiveWorkoutData(message)
 
-    // MARK: - Handle Questionnaire
+          } else if let type = message["type"] as? String, type == "questionnaire" {
+              // This is your existing case, it stays the same
+              self.handleQuestionnaire(message)
+              
+          } else {
+              print("⚠️ Received message of unknown type: \(message)")
+          }
+      }
+    }
     private func handleQuestionnaire(_ message: [String: Any]) {
         guard
             let workoutIdString = message["workoutId"] as? String,
@@ -104,55 +95,68 @@ class WatchConnectivityManager: NSObject, WCSessionDelegate, ObservableObject {
         )
     }
 
-    // MARK: - Handle Workout Summary
-    private func handleWorkoutSummary(_ message: [String: Any]) {
+    private func handleLiveWorkoutData(_ message: [String: Any]) {
         guard
-            let workoutIdString = message["workoutId"] as? String,
-            let startTime = message["startTime"] as? String,
-            let endTime = message["endTime"] as? String,
-            let calories = message["calories"] as? Double,
-            let steps = message["steps"] as? Int,
-            let distance = message["distance"] as? Double,
-            let coreTempMin = message["coreTempMin"] as? Double,
-            let coreTempMax = message["coreTempMax"] as? Double,
-            let coreTempAvg = message["coreTempAvg"] as? Double,
-            let heartRateMin = message["heartRateMin"] as? Int,
-            let heartRateMax = message["heartRateMax"] as? Int,
-            let heartRateAvg = message["heartRateAvg"] as? Int,
-            let workoutId = UUID(uuidString: workoutIdString)
+            let hr = message["heartRate"] as? Double,
+            let temp = message["coreTemp"] as? Double
         else {
-            print("🛑 Invalid workout summary message")
+            print("🛑 WATCH/IPHONE: Invalid live workout data message format")
             return
         }
 
-        DatabaseManager.shared.insertWorkoutSummary(
-            workoutId: workoutId,
-            startTime: startTime,
-            endTime: endTime,
-            calories: calories,
-            steps: steps,
-            distance: distance,
-            coreTempMin: coreTempMin,
-            coreTempMax: coreTempMax,
-            coreTempAvg: coreTempAvg,
-            heartRateMin: heartRateMin,
-            heartRateMax: heartRateMax,
-            heartRateAvg: heartRateAvg
-        )
+        // Update the @Published properties. This will automatically update any SwiftUI views.
+        self.heartRate = hr
+        self.coreTemp = temp
+        print("✅ Live data updated - HR: \(hr), Temp: \(temp)")
     }
-
-  // MARK: - Handle background delivery of workout summaries
-  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
+  
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
       DispatchQueue.main.async {
-          if let type = userInfo["type"] as? String, type == "workout_summary" {
-              self.handleWorkoutSummary(userInfo)
-          } else {
-              print("📥 Received userInfo of unknown type: \(userInfo)")
-          }
+        print("⚠️ IPHONE: Received UserInfo via legacy method. This is no longer used for workout summaries. Data: \(userInfo)")
       }
-  }
+    }
+    
+    func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
+        if let error = error {
+            print("🛑 IPHONE: File transfer failed with error: \(error.localizedDescription)")
+            return
+        }
 
-    // MARK: - Required WCSessionDelegate Methods
+        let fileURL = fileTransfer.file.fileURL
+        print("📥 IPHONE: Received workout summary file at URL: \(fileURL.path)")
+
+        Task(priority: .background) {
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let summary = try JSONDecoder().decode(WorkoutSummary.self, from: data)
+
+                print("✅ IPHONE: Successfully decoded summary for workout ID: \(summary.id)")
+
+              // Format dates as strings for insertion
+              let isoFormatter = ISO8601DateFormatter()
+
+              DatabaseManager.shared.insertWorkoutSummary(
+                             workoutId: summary.id,
+                             startTime: isoFormatter.string(from: summary.startTime),
+                             endTime: isoFormatter.string(from: summary.endTime),
+                             calories: summary.calories,
+                             steps: summary.steps,
+                             distance: summary.distance,
+                             coreTempMin: summary.coreTempMin,
+                             coreTempMax: summary.coreTempMax,
+                             coreTempAvg: summary.coreTempAverage,
+                             heartRateMin: summary.heartRateMin,
+                             heartRateMax: summary.heartRateMax,
+                             heartRateAvg: Int(summary.heartRateAverage)
+                         )
+                
+                try? FileManager.default.removeItem(at: fileURL)
+
+            } catch {
+                print("🛑 IPHONE: Error processing received file: \(error.localizedDescription)")
+            }
+        }
+    }
     func sessionDidBecomeInactive(_ session: WCSession) {}
     func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()

@@ -94,7 +94,7 @@ struct HeartRateDetailView: View {
         }
         .navigationTitle("Heart Rate Details")
         .onAppear {
-            healthKitManager.fetchLatestHeartRate() // 🔥 Immediate fetch
+          healthKitManager.fetchLatestHeartRateAndUpdateCoreTemp() // 🔥 Immediate fetch
             startTimer()                            // ⏱️ Start 10s auto-refresh
         }
         .onDisappear {
@@ -110,7 +110,7 @@ struct HeartRateDetailView: View {
 
     private func startTimer() {
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
-            healthKitManager.fetchLatestHeartRate()
+          healthKitManager.fetchLatestHeartRateAndUpdateCoreTemp()
         }
     }
 
@@ -119,4 +119,3 @@ struct HeartRateDetailView: View {
         refreshTimer = nil
     }
 }
-

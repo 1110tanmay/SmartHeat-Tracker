@@ -8,7 +8,6 @@ class DatabaseManager {
 
     private let db: Connection
 
-    // WorkoutSessions table and columns
     private let workoutSessions = Table("WorkoutSessions")
     private let id = SQLiteExpression<String>("id")
     private let startTime = SQLiteExpression<Date>("startTime")
@@ -20,8 +19,6 @@ class DatabaseManager {
     private let maxHeartRate = SQLiteExpression<Double?>("maxHeartRate")
     private let averageCoreTemp = SQLiteExpression<Double?>("averageCoreTemp")
     private let maxCoreTemp = SQLiteExpression<Double?>("maxCoreTemp")
-
-    // QuestionnaireResponses table and columns ✅
     private let questionnaireResponses = Table("QuestionnaireResponses")
     private let qWorkoutId = SQLiteExpression<String>("workoutId")
     private let qTimestamp = SQLiteExpression<String>("timestamp")
@@ -29,7 +26,6 @@ class DatabaseManager {
     private let qHydration = SQLiteExpression<Int>("hydration")
     private let qThermal = SQLiteExpression<Int>("thermal")
 
-    // UserProfile table and columns
     private let userProfile = Table("UserProfile")
     private let userId = SQLiteExpression<String>("id")
     private let name = SQLiteExpression<String>("name")
@@ -41,29 +37,24 @@ class DatabaseManager {
     private let weight = SQLiteExpression<Double>("weight")
     private let distanceUnit = SQLiteExpression<String>("distanceUnit")
     private let temperatureUnit = SQLiteExpression<String>("temperatureUnit")
-    private let activityLevel = SQLiteExpression<Int>("activityLevel") // ✅ NEW
+    private let activityLevel = SQLiteExpression<Int>("activityLevel")
 
-    // CoreTempHistory table and columns
     private let coreTempHistory = Table("CoreTempHistory")
     private let coreTempTimestamp = SQLiteExpression<Date>("timestamp")
     private let coreTempValue = SQLiteExpression<Double>("temp")
 
-    // HeartRateHistory table and columns
     private let heartRateHistory = Table("HeartRateHistory")
     private let heartRateTimestamp = SQLiteExpression<Date>("timestamp")
     private let heartRateBPM = SQLiteExpression<Double>("bpm")
 
-    // StepsHistory table and columns
     private let stepsHistory = Table("StepsHistory")
     private let stepsTimestamp = SQLiteExpression<Date>("timestamp")
     private let stepsCount = SQLiteExpression<Int>("steps")
 
-    // CaloriesHistory table and columns
     private let caloriesHistory = Table("CaloriesHistory")
     private let caloriesTimestamp = SQLiteExpression<Date>("timestamp")
     private let caloriesBurned = SQLiteExpression<Double>("calories")
 
-    // DistanceHistory table and columns
     private let distanceHistory = Table("DistanceHistory")
     private let distanceTimestamp = SQLiteExpression<Date>("timestamp")
     private let distanceCovered = SQLiteExpression<Double>("distance")
@@ -167,16 +158,12 @@ class DatabaseManager {
             table.column(caloriesBurned)
         })
     }
-
     private func createDistanceHistoryTable() throws {
         try db.run(distanceHistory.create(ifNotExists: true) { table in
             table.column(distanceTimestamp, primaryKey: true)
             table.column(distanceCovered)
         })
     }
-    
-  // MARK: - User Profile Insert and Fetch
-
   func insertOrUpdateUserProfile(_ profile: UserProfile) {
       do {
           let existing = userProfile.filter(userId == profile.id)
@@ -212,7 +199,6 @@ class DatabaseManager {
           print("❌ Failed to insert/update user profile: \(error)")
       }
   }
-
   func fetchUserProfile() -> UserProfile? {
       do {
           if let row = try db.pluck(userProfile) {

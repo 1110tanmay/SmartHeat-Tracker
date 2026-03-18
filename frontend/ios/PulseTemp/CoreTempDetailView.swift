@@ -114,18 +114,17 @@ struct CoreTempDetailView: View {
                 .padding()
                 .background(Color.orange)
                 .cornerRadius(12)
-
-                // Show More Button
                
-
                 Spacer()
             }
             .padding()
         }
         .navigationTitle("Core Temperature")
-    }
+        .onAppear {
+            healthKitManager.fetchCoreTempTrend()
+        }
 
-    // MARK: - Helpers
+    }
 
     func celsiusToFahrenheit(_ celsius: Double) -> Double {
         (celsius * 9/5) + 32

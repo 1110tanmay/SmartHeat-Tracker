@@ -5,7 +5,10 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>healthkit</string>
 		<string>remote-notification</string>
+		<string>processing</string>
+		<string>workout-processing</string>
 	</array>
 </dict>
 </plist>

@@ -1,15 +1,15 @@
 import SwiftUI
-
 struct WorkoutSummaryView: View {
     @State private var showWorkout = false
     @State private var showCountdown = false
     @Namespace private var animation
 
     @EnvironmentObject var workoutManager: WorkoutManager
+  
+    let timer = Timer.publish(every: 15, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
-            // 🔥 Brand Gradient
             LinearGradient(
                 gradient: Gradient(colors: [Color(red: 1.0, green: 0.6, blue: 0.1), Color(red: 0.85, green: 0.2, blue: 0.1)]),
                 startPoint: .top,
@@ -19,13 +19,11 @@ struct WorkoutSummaryView: View {
 
             ScrollView {
                 VStack(spacing: 24) {
-                    // 🌡️ Header Title
                     Text("SmartHeat Tracker")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .padding(.top, 10)
 
-                    // 🔸 Core Temp Tile
                     workoutTile(
                         icon: "thermometer",
                         title: "Core Temp",
@@ -33,7 +31,6 @@ struct WorkoutSummaryView: View {
                         color: .orange
                     )
 
-                    // ❤️ Heart Rate Tile
                     workoutTile(
                         icon: "heart.fill",
                         title: "Heart Rate",
@@ -41,7 +38,6 @@ struct WorkoutSummaryView: View {
                         color: .red
                     )
 
-                    // 🏃‍♂️ Start Workout Button
                     Button(action: {
                         withAnimation(.easeInOut) {
                             showCountdown = true
@@ -67,18 +63,18 @@ struct WorkoutSummaryView: View {
                 }
             }
         }
-        // Countdown Screen
+
         .fullScreenCover(isPresented: $showCountdown) {
             WorkoutCountdownView(isActive: $showCountdown, startWorkout: $showWorkout)
         }
 
-        // Workout Screen
         .fullScreenCover(isPresented: $showWorkout) {
             WorkoutSessionView()
         }
+        .onReceive(timer) { _ in
+                   workoutManager.fetchLatestHealthData()
+               }
     }
-
-    // 🧱 Custom Tile View
   @ViewBuilder
   func workoutTile(icon: String, title: String, value: String, color: Color) -> some View {
       HStack(alignment: .center, spacing: 12) {
@@ -100,19 +96,16 @@ struct WorkoutSummaryView: View {
                   .lineLimit(1)
                   .minimumScaleFactor(0.5)
           }
-
           Spacer()
       }
       .padding()
       .frame(maxWidth: .infinity, minHeight: 60)
       .background(
           RoundedRectangle(cornerRadius: 18)
-              .fill(Color.white.opacity(0.12)) // gentle neutral overlay
+              .fill(Color.white.opacity(0.12)) 
       )
       .cornerRadius(18)
       .shadow(color: color.opacity(0.2), radius: 4, x: 0, y: 2)
   }
-
-
 }
 

@@ -1,5 +1,3 @@
-// WorkoutManager.swift
-
 import Foundation
 import HealthKit
 import Combine
@@ -10,236 +8,217 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
-    private var stepQuery: HKStatisticsCollectionQuery? // <-- ADD THIS LINE
+    private var stepQuery: HKStatisticsCollectionQuery?
 
     @Published var workoutId: UUID = UUID()
     @Published var workoutStartDate: Date?
     @Published var elapsedTime: TimeInterval = 0
-    @Published var heartRate: Double = 0
     @Published var activeEnergy: Double = 0
     @Published var distance: Double = 0
     @Published var showQuestionnaire: Bool = false
-    @Published var coreTemp: Double = 0.0
     @Published var steps: Int = 0
     @Published var heartRateSamples: [Int] = []
     @Published var coreTempSamples: [Double] = []
-
+    @Published var heartRate: Double = 0
+    @Published var coreTemp: Double = 0
   
+    private let ecTempCalculator = ECTempCalculator()
     private var timerCancellable: AnyCancellable?
     private var questionnaireTimer: Timer?
     private var notificationSent = false
-
+    
     override init() {
         super.init()
-        print("WorkoutManager initialized ✅")
         setupWatchConnectivity()
         requestNotificationPermission()
-
-        if let info = Bundle.main.infoDictionary {
-            print("🚨 Info.plist keys: \(info.keys)")
-            if let shareDesc = info["NSHealthShareUsageDescription"] as? String {
-                print("✅ NSHealthShareUsageDescription: \(shareDesc)")
-            } else {
-                print("🛑 NSHealthShareUsageDescription missing at runtime")
-            }
-        }
+        startBackgroundWorkoutSession()
     }
-
-    // MARK: - Watch Connectivity Setup
+  
     private func setupWatchConnectivity() {
         if WCSession.isSupported() {
             let wcSession = WCSession.default
             wcSession.delegate = self
             wcSession.activate()
-            print("🔗 WCSession activated")
-        } else {
-            print("🛑 WatchConnectivity not supported")
         }
     }
 
-    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        if let error = error {
-            print("🛑 WCSession activation failed: \(error.localizedDescription)")
-        } else {
-            print("✅ WCSession activation complete with state: \(activationState.rawValue)")
-        }
-    }
-
-  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {DispatchQueue.main.async {
-    if let hr = message["heartRate"] as? Double {
-        let bpm = Int(hr) // ✅ convert to Int once
-        self.heartRate = hr
-        self.heartRateSamples.append(bpm) // ✅ store as Int
-        print("❤️ Received heart rate from iPhone: \(bpm) BPM")
-    }
-
-    if let temp = message["coreTemp"] as? Double {
-        self.coreTemp = temp
-        self.coreTempSamples.append(temp)
-        print("🌡️ Received core temp from iPhone: \(temp) °C")
-    }
-}
-}
-
-    // MARK: - Send Questionnaire to iPhone
     func sendQuestionnaireToPhone(exertion: Int, hydration: Int, thermal: Int) {
-        guard WCSession.default.isReachable else {
-            print("📡 iPhone not reachable — cannot send questionnaire.")
-            return
-        }
-
+        guard WCSession.default.isReachable else { return }
         let message: [String: Any] = [
-            "type": "questionnaire",
-            "exertion": exertion,
-            "hydration": hydration,
-            "thermal": thermal,
-            "timestamp": ISO8601DateFormatter().string(from: Date()),
-            "workoutId": workoutId.uuidString
+            "type": "questionnaire", "exertion": exertion, "hydration": hydration, "thermal": thermal,
+            "timestamp": ISO8601DateFormatter().string(from: Date()), "workoutId": workoutId.uuidString
         ]
-
-        WCSession.default.sendMessage(message, replyHandler: nil) { error in
-            print("🛑 Failed to send questionnaire to iPhone: \(error.localizedDescription)")
-        }
+        WCSession.default.sendMessage(message, replyHandler: nil)
     }
 
-    // MARK: - HealthKit Authorization
-  func requestAuthorization() {
-      let typesToShare: Set = [
-          HKObjectType.workoutType() // 🔑 Required to start workouts
-      ]
+  func fetchLatestHealthData() {
+      // 1. Define the type of data we want to read (heart rate)
+      guard let heartRateType = HKQuantityType.quantityType(forIdentifier: .heartRate) else {
+          print("🛑 Heart rate type is unavailable for summary fetch.")
+          return
+      }
 
+      // 2. Create a sort descriptor to get the most recent sample first
+      let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+      // 3. Create the query to fetch just the single most recent sample
+      let query = HKSampleQuery(sampleType: heartRateType, predicate: nil, limit: 1, sortDescriptors: [sortDescriptor]) { [weak self] _, samples, error in
+          guard let self = self, let sample = samples?.first as? HKQuantitySample, error == nil else {
+              // This is a common case if no HR data has been recorded yet.
+              print("⚠️ Could not fetch a recent heart rate sample for the summary view.")
+              return
+          }
+
+          // 4. Extract the heart rate value (BPM)
+          let latestBPM = sample.quantity.doubleValue(for: .count().unitDivided(by: .minute()))
+
+          // 5. Calculate core temp locally using the fetched BPM
+          let calculatedTemp = self.ecTempCalculator.updateCoreTemp(with: latestBPM)
+
+          // 6. IMPORTANT: Update the UI properties on the main thread
+          Task { @MainActor in
+              self.heartRate = latestBPM
+              self.coreTemp = calculatedTemp
+              print("✅ Fetched latest data for summary: \(latestBPM) BPM, \(calculatedTemp)°C")
+          }
+      }
+
+      healthStore.execute(query)
+  }
+
+  private func sendWorkoutSummaryToPhone() {
+      
+      guard WCSession.default.activationState == .activated else {
+          print("🛑 WATCH: WCSession not activated. Cannot send file.")
+          return
+      }
+      
+      let summary = WorkoutSummary(
+          id: self.workoutId,
+          startTime: self.workoutStartDate ?? Date(),
+          endTime: Date(),
+          calories: self.activeEnergy,
+          steps: self.steps,
+          distance: self.distance,
+          heartRateSamples: self.heartRateSamples,
+          coreTempSamples: self.coreTempSamples
+      )
+
+      guard WCSession.isSupported() else {
+          print("🛑 WATCH: WCSession not supported on this device. Cannot send workout summary.")
+          return
+      }
+
+      guard WCSession.default.activationState == .activated else {
+          print("🛑 WATCH: WCSession not activated. Cannot send workout summary file right now.")
+          return
+      }
+
+      guard let data = try? JSONEncoder().encode(summary) else {
+          print("🛑 WATCH: Failed to encode workout summary.")
+          return
+      }
+
+      let tempDir = FileManager.default.temporaryDirectory
+      let fileURL = tempDir.appendingPathComponent("\(summary.id.uuidString).json")
+
+      do {
+          try data.write(to: fileURL, options: [.atomic])
+
+          WCSession.default.transferFile(fileURL, metadata: ["workoutID": summary.id.uuidString])
+
+          print("📤 WATCH: Queued workout summary file for sending: \(fileURL.lastPathComponent)")
+
+      } catch {
+          print("🛑 WATCH: Error writing or transferring the summary file: \(error.localizedDescription)")
+      }
+  }
+
+  func requestAuthorization() {
+      let typesToShare: Set = [HKObjectType.workoutType()]
       let typesToRead: Set = [
           HKObjectType.quantityType(forIdentifier: .activeEnergyBurned)!,
           HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)!,
-          HKObjectType.quantityType(forIdentifier: .bodyTemperature)!, // optional if you're syncing temp
+          HKObjectType.quantityType(forIdentifier: .bodyTemperature)!,
           HKObjectType.quantityType(forIdentifier: .stepCount)!,
-          HKObjectType.quantityType(forIdentifier: .heartRate)!        // for completeness
+          HKObjectType.quantityType(forIdentifier: .heartRate)!
       ]
-
+      
       healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
-          DispatchQueue.main.async {
-              if success {
-                  print("✅ HealthKit authorization successful")
-              } else {
-                  print("🛑 HealthKit authorization failed: \(error?.localizedDescription ?? "Unknown error")")
-              }
-          }
-      }
-  }
-
-
-    // MARK: - Workout Session Management
-  
-  // In WorkoutManager.swift
-
-  func startWorkout() {
-      workoutId = UUID()
-
-      let config = HKWorkoutConfiguration()
-      config.activityType = .walking
-      config.locationType = .indoor
-
-      do {
-          session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
-          builder = session?.associatedWorkoutBuilder()
-          
-          // Use the basic data source, as the builder isn't providing steps
-          builder?.dataSource = HKLiveWorkoutDataSource(
-              healthStore: healthStore,
-              workoutConfiguration: config
-          )
-          
-          session?.delegate = self
-          builder?.delegate = self
-          
-          let startDate = Date()
-          self.workoutStartDate = startDate
-          
-          session?.startActivity(with: startDate)
-          builder?.beginCollection(withStart: startDate) { success, error in
+          if success {
+              print("✅ Watch HealthKit authorization successful")
+              self.fetchLatestHealthData()
+          } else {
               if let error = error {
-                  print("🛑 beginCollection failed: \(error.localizedDescription)")
-              } else {
-                  print("✅ beginCollection succeeded")
+                  print("🛑 Watch HealthKit authorization failed: \(error.localizedDescription)")
               }
           }
-
-          // --- ADD THIS LINE TO START OUR CUSTOM STEP QUERY ---
-          startStepQuery(from: startDate)
-
-          startTimer()
-          startQuestionnaireTimer()
-
-      } catch {
-          print("🛑 Failed to start workout: \(error.localizedDescription)")
       }
   }
   
-  // In WorkoutManager.swift, add this entire new function
+    private func startBackgroundWorkoutSession() {
+        let config = HKWorkoutConfiguration()
+        config.activityType = .other
+        config.locationType = .indoor
+        do {
+            let backgroundSession = try HKWorkoutSession(healthStore: healthStore, configuration: config)
+            backgroundSession.startActivity(with: Date())
+        } catch {}
+    }
 
-  private func startStepQuery(from startDate: Date) {
-      let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
-      let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil, options: .strictStartDate)
+    func startWorkout() {
+        workoutId = UUID()
+        let config = HKWorkoutConfiguration()
+        config.activityType = .walking
+        config.locationType = .indoor
+        do {
+            session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
+            builder = session?.associatedWorkoutBuilder()
+            builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: config)
+            session?.delegate = self
+            builder?.delegate = self
+            let startDate = Date()
+            self.workoutStartDate = startDate
+            session?.startActivity(with: startDate)
+          
+            session?.startMirroringToCompanionDevice(completion: { success, error in
+              print("🔁 Mirroring started: \(success), error: \(String(describing: error))")
+          })
+            builder?.beginCollection(withStart: startDate) { _, _ in }
+            startStepQuery(from: startDate)
+            startTimer()
+            startQuestionnaireTimer()
+        } catch {}
+    }
 
-      stepQuery = HKStatisticsCollectionQuery(
-          quantityType: stepType,
-          quantitySamplePredicate: predicate,
-          options: .cumulativeSum,
-          anchorDate: startDate,
-          intervalComponents: DateComponents(day: 1)
-      )
+    private func startStepQuery(from startDate: Date) {
+        let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        let predicate = HKQuery.predicateForSamples(withStart: startDate, end: nil, options: .strictStartDate)
+        stepQuery = HKStatisticsCollectionQuery(quantityType: stepType, quantitySamplePredicate: predicate, options: .cumulativeSum, anchorDate: startDate, intervalComponents: DateComponents(day: 1))
+        stepQuery!.initialResultsHandler = { _, collection, _ in
+            let sum = collection?.statistics().last?.sumQuantity()
+            DispatchQueue.main.async { self.steps = Int(sum?.doubleValue(for: .count()) ?? 0) }
+        }
+        stepQuery!.statisticsUpdateHandler = { _, statistics, _, _ in
+            let sum = statistics?.sumQuantity()
+            DispatchQueue.main.async { self.steps = Int(sum?.doubleValue(for: .count()) ?? 0) }
+        }
+        healthStore.execute(stepQuery!)
+    }
 
-      // Required initial handler
-      stepQuery!.initialResultsHandler = { query, collection, error in
-          guard let statistics = collection?.statistics().last,
-                let sum = statistics.sumQuantity() else {
-              return
-          }
-
-          DispatchQueue.main.async {
-              let newSteps = sum.doubleValue(for: .count())
-              self.steps = Int(newSteps)
-              print("👣 Steps Initial Total via Query: \(self.steps)")
-          }
-      }
-
-      // Live update handler
-      stepQuery!.statisticsUpdateHandler = { query, statistics, collection, error in
-          guard let statistics = statistics,
-                let sum = statistics.sumQuantity() else {
-              return
-          }
-
-          DispatchQueue.main.async {
-              let newSteps = sum.doubleValue(for: .count())
-              self.steps = Int(newSteps)
-              print("👣 Steps Updated via Query: \(self.steps)")
-          }
-      }
-
-      healthStore.execute(stepQuery!)
-  }
-
-
-  // In WorkoutManager.swift
-
-  func endWorkout() {
-      session?.end()
-      builder?.endCollection(withEnd: Date()) { _, _ in
-          self.builder?.finishWorkout { _, _ in }
-      }
-
-      // --- ADD THESE LINES TO STOP OUR CUSTOM STEP QUERY ---
-      if let query = self.stepQuery {
-          healthStore.stop(query)
-      }
-
-      timerCancellable?.cancel()
-      questionnaireTimer?.invalidate()
-      notificationSent = false
-      sendWorkoutSummaryToPhone()
-  }
-
+    func endWorkout() {
+      print("🛑 WATCH: endWorkout() called")
+        session?.end()
+        builder?.endCollection(withEnd: Date()) { _, _ in
+            self.builder?.finishWorkout { _, _ in }
+        }
+        if let query = self.stepQuery { healthStore.stop(query) }
+        timerCancellable?.cancel()
+        questionnaireTimer?.invalidate()
+        notificationSent = false
+        sendWorkoutSummaryToPhone()
+    }
+  
     func pauseWorkout() {
         session?.pause()
         timerCancellable?.cancel()
@@ -253,185 +232,112 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func startTimer() {
-        timerCancellable = Timer
-            .publish(every: 1, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in
-                guard let start = self?.workoutStartDate else { return }
-                self?.elapsedTime = Date().timeIntervalSince(start)
-            }
+        timerCancellable = Timer.publish(every: 1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+            guard let start = self?.workoutStartDate else { return }
+            self?.elapsedTime = Date().timeIntervalSince(start)
+        }
     }
-
-    // MARK: - Notifications
+    
     private func requestNotificationPermission() {
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error = error {
-                print("🛑 Notification permission error: \(error.localizedDescription)")
-                return
-            }
-            print(granted ? "🔔 Notification permission granted" : "🚫 Notification permission denied")
-        }
+        center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         center.delegate = self
     }
-
-    private func sendCoreTempAlertNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "⚠️ High Core Temp"
-        content.body = "Your core body temperature is high. Please rest for 2 minutes."
-        content.sound = .default
-
-        let request = UNNotificationRequest(identifier: UUID().uuidString,
-                                            content: content,
-                                            trigger: nil)
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    private func startQuestionnaireTimer() {
-        questionnaireTimer?.invalidate()
-        questionnaireTimer = Timer.scheduledTimer(withTimeInterval: 1800, repeats: true) { [weak self] _ in
-            self?.sendQuestionnaireNotification()
-        }
-    }
-
-    private func sendQuestionnaireNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "📝 Quick Check-In"
-        content.body = """
-        1. Perceived Exertion (6–20)
-        2. Hydration Level (1–5)
-        3. Thermal Sensation (1–5)
-        """
-        content.sound = .default
-
-        let request = UNNotificationRequest(identifier: UUID().uuidString,
-                                            content: content,
-                                            trigger: nil)
-        UNUserNotificationCenter.current().add(request)
-    }
-  
-  private func sendWorkoutSummaryToPhone() {
-      print("⌚️ Workout ended at \(Date()), preparing to send summary to iPhone")
-
-      let formatter = ISO8601DateFormatter()
-      let startString = workoutStartDate.map { formatter.string(from: $0) } ?? ""
-      let endString = formatter.string(from: Date())
-
-      // ✅ Filter valid core temp values
-      let validCoreTemps = coreTempSamples.filter { $0 > 0 }
-      let coreMin = validCoreTemps.min() ?? 0
-      let coreMax = validCoreTemps.max() ?? 0
-      let coreAvg = validCoreTemps.isEmpty ? 0 : validCoreTemps.reduce(0, +) / Double(validCoreTemps.count)
-
-      // ✅ Filter valid heart rates
-      let validHeartRates = heartRateSamples.filter { $0 > 0 }
-      let hrMin = validHeartRates.min() ?? 0
-      let hrMax = validHeartRates.max() ?? 0
-      let hrAvg = validHeartRates.isEmpty ? 0 : validHeartRates.reduce(0, +) / validHeartRates.count
-
-      // ✅ Steps
-    let totalSteps = self.steps
-
-      // ✅ Prepare summary dictionary
-      let summary: [String: Any] = [
-          "type": "workout_summary",
-          "workoutId": workoutId.uuidString,
-          "startTime": startString,
-          "endTime": endString,
-          "calories": activeEnergy,
-          "steps": totalSteps,
-          "distance": distance,
-          "coreTempMin": coreMin,
-          "coreTempMax": coreMax,
-          "coreTempAvg": coreAvg,
-          "heartRateMin": hrMin,
-          "heartRateMax": hrMax,
-          "heartRateAvg": hrAvg
-      ]
-
-      // ✅ Use transferUserInfo instead of sendMessage
-      WCSession.default.transferUserInfo(summary)
-      print("📤 Workout summary queued for iPhone using transferUserInfo: \(summary)")
-  }
-
-
+    private func sendCoreTempAlertNotification() { /* ... */ }
+    private func startQuestionnaireTimer() { /* ... */ }
+    private func sendQuestionnaireNotification() { /* ... */ }
 }
 
-// MARK: - UNUserNotificationCenterDelegate
+extension WorkoutManager {
+    func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+
+    }
+
+  func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
+      DispatchQueue.main.async {
+          if let type = message["type"] as? String, type == "questionnaire" {
+              // If in the future the iPhone needs to send a questionnaire TO the watch,
+              // you would handle it here. For now, this can be empty.
+          } else {
+              print("⚠️ WATCH: Received an unhandled message: \(message)")
+          }
+      }
+  }
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    print("⌚️ WATCH LOG [1/3]: RECEIVED raw context: \(applicationContext)")
+    
+    DispatchQueue.main.async {
+      
+      if let receivedHeartRate = applicationContext["heartRate"] as? Double {
+        self.heartRate = receivedHeartRate
+      }
+      
+      if let receivedCoreTemp = applicationContext["coreTemp"] as? Double {
+        self.coreTemp = receivedCoreTemp
+        print("⌚️ WATCH LOG [2/3]: UPDATED state. self.coreTemp is now: \(self.coreTemp)")
+        
+        if receivedCoreTemp > 0 {
+          self.coreTempSamples.append(receivedCoreTemp)
+        }
+      }
+      print("📥 WATCH: Received synchronized pair - HR: \(self.heartRate), Temp: \(self.coreTemp)")
+    }
+  }
+}
 extension WorkoutManager: UNUserNotificationCenterDelegate {
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse,
-                                withCompletionHandler completionHandler: @escaping () -> Void) {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         if response.notification.request.content.title == "📝 Quick Check-In" {
-            DispatchQueue.main.async {
-                self.showQuestionnaire = true
-            }
+            DispatchQueue.main.async { self.showQuestionnaire = true }
         }
         completionHandler()
     }
 }
 
-// MARK: - HKWorkoutSessionDelegate
 extension WorkoutManager: HKWorkoutSessionDelegate {
-    func workoutSession(_ workoutSession: HKWorkoutSession,
-                        didChangeTo toState: HKWorkoutSessionState,
-                        from fromState: HKWorkoutSessionState,
-                        date: Date) {}
-
-    func workoutSession(_ workoutSession: HKWorkoutSession,
-                        didFailWithError error: Error) {
-        print("🛑 Workout session failed: \(error.localizedDescription)")
-    }
+    func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {}
+    func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {}
 }
 
-// MARK: - HKLiveWorkoutBuilderDelegate
-// ✅ FINAL AND CORRECT VERSION ✅
-// MARK: - HKLiveWorkoutBuilderDelegate
+
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
-    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) { }
 
-    func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
-                        didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        
-        // You can use this to see what data HealthKit is giving you
-        print("HKLiveWorkoutBuilderDelegate received data for types: \(collectedTypes.map { $0.identifier })")
-
+    func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
         for type in collectedTypes {
-            guard let quantityType = type as? HKQuantityType,
-                  let statistics = builder?.statistics(for: quantityType) else { continue }
+            guard let quantityType = type as? HKQuantityType else { continue }
 
-            switch quantityType {
-            case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
-                let newEnergy = statistics.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-                DispatchQueue.main.async {
-                    self.activeEnergy = newEnergy
-                    print("🔥 Active Energy: \(self.activeEnergy) kcal")
-                }
-                
-            case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
-                let meters = statistics.sumQuantity()?.doubleValue(for: .meter()) ?? 0
-                DispatchQueue.main.async {
-                    self.distance = meters / 1000
-                    print("📏 Distance: \(self.distance) km")
-                }
+            // Get the statistics for the workout so far
+            let statistics = workoutBuilder.statistics(for: quantityType)
 
-            case HKQuantityType.quantityType(forIdentifier: .bodyTemperature):
-                let temp = statistics.mostRecentQuantity()?.doubleValue(for: .degreeCelsius()) ?? 0
-                if temp >= 37.8, !notificationSent {
-                    sendCoreTempAlertNotification()
-                    notificationSent = true
+            DispatchQueue.main.async {
+                switch quantityType {
+                case HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned):
+                    self.activeEnergy = statistics?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+                    
+                case HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning):
+                    self.distance = (statistics?.sumQuantity()?.doubleValue(for: .meter()) ?? 0) / 1000
+                    
+                case HKQuantityType.quantityType(forIdentifier: .heartRate):
+                    // --- THIS IS THE NEW CORE LOGIC ---
+                    // 1. Get the most recent heart rate value
+                    let latestBpm = statistics?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute())) ?? 0
+                    if latestBpm > 0 {
+                        self.heartRate = latestBpm
+                        self.heartRateSamples.append(Int(latestBpm))
+                        
+                        // 2. Calculate core temp LOCALLY using the new heart rate
+                        let calculatedTemp = self.ecTempCalculator.updateCoreTemp(with: latestBpm)
+                        self.coreTemp = calculatedTemp
+                        
+                        if calculatedTemp > 0 {
+                            self.coreTempSamples.append(calculatedTemp)
+                        }
+                    }
+                    
+                default:
+                    // Handle other types if needed
+                    break
                 }
-
-            // Correctly positioned as its own case
-            case HKQuantityType.quantityType(forIdentifier: .stepCount):
-                let newSteps = statistics.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                DispatchQueue.main.async {
-                    self.steps = Int(newSteps)
-                    print("👣 Steps: \(self.steps)")
-                }
-
-            default:
-                break
             }
         }
     }

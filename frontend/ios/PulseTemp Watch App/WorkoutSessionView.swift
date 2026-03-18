@@ -20,10 +20,7 @@ struct WorkoutSessionView: View {
 
                 ScrollView {
                   VStack(spacing: 20) {
-                    // Exit Button
-                    
-                    
-                    // Timer
+
                     Text(String(format: "%02d:%02d",
                                 Int(workoutManager.elapsedTime) / 60,
                                 Int(workoutManager.elapsedTime) % 60))
@@ -31,7 +28,6 @@ struct WorkoutSessionView: View {
                     .monospacedDigit()
                     .foregroundColor(.white)
                     
-                    // Core Temp Tile
                     VStack(alignment: .center, spacing: 6) {
                       HStack(alignment: .center, spacing: 12) {
                         Image(systemName: "thermometer")
@@ -46,8 +42,7 @@ struct WorkoutSessionView: View {
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                           
-                          Text(String(format: "%.2f°C", workoutManager.coreTemp))
-                            .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                          Text(String(format: "%.2f°C", workoutManager.coreTemp))                            .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .minimumScaleFactor(0.5)
@@ -56,15 +51,14 @@ struct WorkoutSessionView: View {
                         Spacer()
                       }
                       .padding()
-                      .frame(maxWidth: .infinity, minHeight: 60) // <- Prevents stretch
+                      .frame(maxWidth: .infinity, minHeight: 60)
                       .background(
                         RoundedRectangle(cornerRadius: 18)
-                          .fill(Color.white.opacity(0.12)) // <- Matches the clean tile style
+                          .fill(Color.white.opacity(0.12))
                       )
                       .cornerRadius(18)
                       .shadow(color: Color.orange.opacity(0.2), radius: 4, x: 0, y: 2)
                     }
-                    // Heart Rate Tile
                     HStack(alignment: .center, spacing: 12) {
                       Image(systemName: "heart.fill")
                         .foregroundColor(.red)
@@ -88,7 +82,7 @@ struct WorkoutSessionView: View {
                       Spacer()
                     }
                     .padding()
-                    .frame(maxWidth: .infinity, minHeight: 60) // 🔧 Critical to avoid vertical zoom
+                    .frame(maxWidth: .infinity, minHeight: 60)
                     .background(
                       RoundedRectangle(cornerRadius: 18)
                         .fill(Color.white.opacity(0.12))
@@ -97,7 +91,6 @@ struct WorkoutSessionView: View {
                     .shadow(color: Color.red.opacity(0.2), radius: 4, x: 0, y: 2)
                   
 
-                        // Metric Rings
                         HStack(spacing: 16) {
                           metricRing(
                               title: "CAL",
@@ -117,9 +110,9 @@ struct WorkoutSessionView: View {
                         }
                         .padding(.horizontal)
 
-                        // Pause and End buttons stacked
+
                       VStack(spacing: 12)  {
-                        // Pause / Resume Button
+
                         Button(action: {
                             isPaused.toggle()
                             isPaused ? workoutManager.pauseWorkout() : workoutManager.resumeWorkout()
@@ -134,7 +127,7 @@ struct WorkoutSessionView: View {
                         .buttonStyle(PlainButtonStyle())
                         .shadow(color: Color.black.opacity(0.2), radius: 6, x: 0, y: 2)
 
-                        // End Button
+
                         Button(action: {
                             workoutManager.endWorkout()
                             showSummary = true
@@ -157,6 +150,9 @@ struct WorkoutSessionView: View {
                     }
                 }
             }
+            .onChange(of: workoutManager.coreTemp) { newTemp in
+                            print("🧊 WATCH LOG [3/3]: UI DETECTED a change in coreTemp. New value is: \(newTemp)")
+                        }
             .onAppear {
                 workoutManager.startWorkout()
             }
@@ -191,7 +187,8 @@ struct WorkoutSessionView: View {
             }
         }
     }
-
+  
+    
 
   func metricRing(title: String, value: Double, color: Color) -> some View {
     let ringSize: CGFloat = 42

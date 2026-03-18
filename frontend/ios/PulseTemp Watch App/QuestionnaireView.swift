@@ -8,7 +8,7 @@ struct QuestionnaireView: View {
     @State private var thermal: Int = 3
 
     var onSubmit: ((Int, Int, Int) -> Void)? = nil
-
+ 
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {

@@ -9,7 +9,6 @@ struct PulseTemp_WatchApp: App {
             WorkoutSummaryView()
                 .environmentObject(workoutManager)
                 .onAppear {
-                    // ✅ Request HealthKit permission when the app launches
                     workoutManager.requestAuthorization()
                 }
         }
