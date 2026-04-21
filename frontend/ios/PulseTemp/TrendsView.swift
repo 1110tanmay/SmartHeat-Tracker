@@ -87,6 +87,8 @@ struct TrendsView: View {
             }
             .navigationTitle("Trends")
             .onAppear {
+                healthKitManager.fetchHeartRateTrend()
+                healthKitManager.fetchCoreTempTrend()
                 healthKitManager.fetchHistoricalHeartRate()
                 healthKitManager.fetchHistoricalSteps()
                 healthKitManager.fetchHistoricalCalories()
@@ -101,6 +103,18 @@ struct TrendsView: View {
     }
 
     // MARK: - Filtering Logic
+    private var mergedCoreTempData: [CoreTempPoint] {
+        let merged = healthKitManager.historicalCoreTemp + healthKitManager.coreTempTrendData
+        let uniqueByTimestamp = Dictionary(merged.map { ($0.timestamp, $0) }, uniquingKeysWith: { current, _ in current })
+        return uniqueByTimestamp.values.sorted { $0.timestamp < $1.timestamp }
+    }
+
+    private var mergedHeartRateData: [HeartRatePoint] {
+        let merged = healthKitManager.historicalHeartRate + healthKitManager.heartRateData
+        let uniqueByTimestamp = Dictionary(merged.map { ($0.timestamp, $0) }, uniquingKeysWith: { current, _ in current })
+        return uniqueByTimestamp.values.sorted { $0.timestamp < $1.timestamp }
+    }
+
     private func isWithinSelectedTimeframe(_ date: Date) -> Bool {
         let calendar = Calendar.current
         switch selectedTimeframe {
@@ -116,11 +130,11 @@ struct TrendsView: View {
     }
 
     private var filteredCoreTemp: [CoreTempPoint] {
-        healthKitManager.historicalCoreTemp.filter { isWithinSelectedTimeframe($0.timestamp) }
+        mergedCoreTempData.filter { isWithinSelectedTimeframe($0.timestamp) }
     }
 
     private var filteredHeartRate: [HeartRatePoint] {
-        healthKitManager.historicalHeartRate.filter { isWithinSelectedTimeframe($0.timestamp) }
+        mergedHeartRateData.filter { isWithinSelectedTimeframe($0.timestamp) }
     }
 
     private var filteredSteps: [StepPoint] {

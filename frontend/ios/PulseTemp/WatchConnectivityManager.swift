@@ -115,6 +115,12 @@ import WatchConnectivity
         print("⚠️ IPHONE: Received UserInfo via legacy method. This is no longer used for workout summaries. Data: \(userInfo)")
       }
     }
+
+    func session(_ session: WCSession, didReceive file: WCSessionFile) {
+        let fileURL = file.fileURL
+        print("📥 IPHONE: didReceive file callback for workout summary at URL: \(fileURL.path)")
+        processReceivedWorkoutSummaryFile(at: fileURL)
+    }
     
     func session(_ session: WCSession, didFinish fileTransfer: WCSessionFileTransfer, error: Error?) {
         if let error = error {
@@ -123,37 +129,36 @@ import WatchConnectivity
         }
 
         let fileURL = fileTransfer.file.fileURL
-        print("📥 IPHONE: Received workout summary file at URL: \(fileURL.path)")
+        print("ℹ️ IPHONE: didFinish transfer callback for file: \(fileURL.lastPathComponent)")
+    }
 
+    private func processReceivedWorkoutSummaryFile(at fileURL: URL) {
         Task(priority: .background) {
             do {
                 let data = try Data(contentsOf: fileURL)
                 let summary = try JSONDecoder().decode(WorkoutSummary.self, from: data)
-
                 print("✅ IPHONE: Successfully decoded summary for workout ID: \(summary.id)")
 
-              // Format dates as strings for insertion
-              let isoFormatter = ISO8601DateFormatter()
+                let isoFormatter = ISO8601DateFormatter()
+                DatabaseManager.shared.insertWorkoutSummary(
+                    workoutId: summary.id,
+                    startTime: isoFormatter.string(from: summary.startTime),
+                    endTime: isoFormatter.string(from: summary.endTime),
+                    calories: summary.calories,
+                    steps: summary.steps,
+                    distance: summary.distance,
+                    coreTempMin: summary.coreTempMin,
+                    coreTempMax: summary.coreTempMax,
+                    coreTempAvg: summary.coreTempAverage,
+                    heartRateMin: summary.heartRateMin,
+                    heartRateMax: summary.heartRateMax,
+                    heartRateAvg: Int(summary.heartRateAverage)
+                )
 
-              DatabaseManager.shared.insertWorkoutSummary(
-                             workoutId: summary.id,
-                             startTime: isoFormatter.string(from: summary.startTime),
-                             endTime: isoFormatter.string(from: summary.endTime),
-                             calories: summary.calories,
-                             steps: summary.steps,
-                             distance: summary.distance,
-                             coreTempMin: summary.coreTempMin,
-                             coreTempMax: summary.coreTempMax,
-                             coreTempAvg: summary.coreTempAverage,
-                             heartRateMin: summary.heartRateMin,
-                             heartRateMax: summary.heartRateMax,
-                             heartRateAvg: Int(summary.heartRateAverage)
-                         )
-                
                 try? FileManager.default.removeItem(at: fileURL)
-
+                print("✅ IPHONE: Workout summary inserted and temp file cleaned up.")
             } catch {
-                print("🛑 IPHONE: Error processing received file: \(error.localizedDescription)")
+                print("🛑 IPHONE: Error processing received workout summary file: \(error.localizedDescription)")
             }
         }
     }

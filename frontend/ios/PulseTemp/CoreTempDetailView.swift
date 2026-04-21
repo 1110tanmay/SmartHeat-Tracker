@@ -4,6 +4,7 @@ import Charts
 struct CoreTempDetailView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
+    @State private var refreshTimer: Timer?
 
     // MARK: - Computed Properties
 
@@ -29,14 +30,17 @@ struct CoreTempDetailView: View {
     }
 
     var latestTemp: String {
-        guard let latest = healthKitManager.latestCoreTemp else { return "-" }
+        let latestSource = healthKitManager.latestCoreTemp ?? healthKitManager.coreTempTrendData.last?.temp
+        guard let latest = latestSource else { return "-" }
         let temp = temperatureUnit == "°F" ? celsiusToFahrenheit(latest) : latest
         return String(format: "%.4f%@", temp, temperatureUnit)
     }
 
     var latestTimestamp: String {
-        guard let lastPoint = healthKitManager.coreTempTrendData.last else { return "-" }
-        return timeFormatter.string(from: lastPoint.timestamp)
+        if let lastPoint = healthKitManager.coreTempTrendData.last {
+            return timeFormatter.string(from: lastPoint.timestamp)
+        }
+        return healthKitManager.latestCoreTemp != nil ? timeFormatter.string(from: Date()) : "-"
     }
 
     var customYDomain: ClosedRange<Double> {
@@ -121,7 +125,11 @@ struct CoreTempDetailView: View {
         }
         .navigationTitle("Core Temperature")
         .onAppear {
-            healthKitManager.fetchCoreTempTrend()
+            refreshData()
+            startTimer()
+        }
+        .onDisappear {
+            stopTimer()
         }
 
     }
@@ -134,6 +142,23 @@ struct CoreTempDetailView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
         return formatter
+    }
+
+    private func refreshData() {
+        // Keep latest CT and trendline in sync while detail screen is visible.
+        healthKitManager.fetchLatestHeartRateAndUpdateCoreTemp()
+        healthKitManager.fetchCoreTempTrend()
+    }
+
+    private func startTimer() {
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { _ in
+            refreshData()
+        }
+    }
+
+    private func stopTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 }
 

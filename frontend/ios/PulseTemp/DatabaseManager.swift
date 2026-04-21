@@ -42,6 +42,7 @@ class DatabaseManager {
     private let coreTempHistory = Table("CoreTempHistory")
     private let coreTempTimestamp = SQLiteExpression<Date>("timestamp")
     private let coreTempValue = SQLiteExpression<Double>("temp")
+    private let coreTempWorkoutId = SQLiteExpression<String>("workoutId")
 
     private let heartRateHistory = Table("HeartRateHistory")
     private let heartRateTimestamp = SQLiteExpression<Date>("timestamp")
@@ -393,7 +394,23 @@ class DatabaseManager {
         do {
             try db.run(coreTempHistory.insert(coreTempTimestamp <- point.timestamp, coreTempValue <- point.temp))
         } catch {
-            print("Failed to insert CoreTempPoint: \(error)")
+            // Backward-compatible fallback for older on-device schema versions
+            // that enforce NOT NULL on CoreTempHistory.workoutId.
+            let message = String(describing: error)
+            if message.contains("CoreTempHistory.workoutId") && message.contains("NOT NULL constraint failed") {
+                do {
+                    try db.run(coreTempHistory.insert(
+                        coreTempTimestamp <- point.timestamp,
+                        coreTempValue <- point.temp,
+                        coreTempWorkoutId <- "legacy"
+                    ))
+                    return
+                } catch {
+                    print("Failed to insert CoreTempPoint (legacy fallback): \(error)")
+                }
+            } else {
+                print("Failed to insert CoreTempPoint: \(error)")
+            }
         }
     }
 

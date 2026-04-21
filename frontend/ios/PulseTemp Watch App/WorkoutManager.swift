@@ -209,14 +209,23 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     func endWorkout() {
       print("🛑 WATCH: endWorkout() called")
         session?.end()
-        builder?.endCollection(withEnd: Date()) { _, _ in
-            self.builder?.finishWorkout { _, _ in }
+        builder?.endCollection(withEnd: Date()) { _, error in
+            if let error = error {
+                print("🛑 WATCH: endCollection failed: \(error.localizedDescription)")
+            }
+            self.builder?.finishWorkout { _, finishError in
+                if let finishError = finishError {
+                    print("🛑 WATCH: finishWorkout failed: \(finishError.localizedDescription)")
+                } else {
+                    print("✅ WATCH: finishWorkout completed. Sending summary.")
+                }
+                self.sendWorkoutSummaryToPhone()
+            }
         }
         if let query = self.stepQuery { healthStore.stop(query) }
         timerCancellable?.cancel()
         questionnaireTimer?.invalidate()
         notificationSent = false
-        sendWorkoutSummaryToPhone()
     }
   
     func pauseWorkout() {
