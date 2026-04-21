@@ -19,6 +19,9 @@ struct WorkoutSummaryTile: View {
         .sheet(isPresented: $showWorkoutList) {
             WorkoutListModal(viewModel: viewModel) // ✅ Pass viewModel
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("WorkoutDataUpdated"))) { _ in
+            viewModel.loadWorkouts()
+        }
     }
 }
 

@@ -321,7 +321,7 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
   func syncHistoricalHeartRateAndCoreTemp() {
     guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return }
     let now = Date()
-    let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let startDate = Calendar.current.date(byAdding: .day, value: -30, to: now)!
     let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
     let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, results, error in
@@ -353,7 +353,7 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
     guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
     
     let now = Date()
-    let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let startDate = Calendar.current.date(byAdding: .day, value: -30, to: now)!
     
     let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -385,7 +385,7 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
     guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
     
     let now = Date()
-    let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let startDate = Calendar.current.date(byAdding: .day, value: -30, to: now)!
     
     let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -417,7 +417,7 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
     guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { return }
     
     let now = Date()
-    let startDate = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+    let startDate = Calendar.current.date(byAdding: .day, value: -30, to: now)!
     
     let predicate = HKQuery.predicateForSamples(withStart: startDate, end: now)
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)

@@ -47,6 +47,7 @@ class DatabaseManager {
     private let heartRateHistory = Table("HeartRateHistory")
     private let heartRateTimestamp = SQLiteExpression<Date>("timestamp")
     private let heartRateBPM = SQLiteExpression<Double>("bpm")
+    private let heartRateWorkoutId = SQLiteExpression<String>("workoutId")
 
     private let stepsHistory = Table("StepsHistory")
     private let stepsTimestamp = SQLiteExpression<Date>("timestamp")
@@ -311,6 +312,9 @@ class DatabaseManager {
           )
           try db.run(insert)
           print("✅ Workout summary inserted (calculated from time-series data) for ID \(workoutId)")
+          DispatchQueue.main.async {
+              NotificationCenter.default.post(name: NSNotification.Name("WorkoutDataUpdated"), object: nil)
+          }
       } catch {
           print("🛑 Failed to insert workout summary: \(error)")
       }
@@ -418,7 +422,23 @@ class DatabaseManager {
         do {
             try db.run(heartRateHistory.insert(heartRateTimestamp <- point.timestamp, heartRateBPM <- point.bpm))
         } catch {
-            print("Failed to insert HeartRatePoint: \(error)")
+            // Backward-compatible fallback for older on-device schema versions
+            // that enforce NOT NULL on HeartRateHistory.workoutId.
+            let message = String(describing: error)
+            if message.contains("HeartRateHistory.workoutId") && message.contains("NOT NULL constraint failed") {
+                do {
+                    try db.run(heartRateHistory.insert(
+                        heartRateTimestamp <- point.timestamp,
+                        heartRateBPM <- point.bpm,
+                        heartRateWorkoutId <- "legacy"
+                    ))
+                    return
+                } catch {
+                    print("Failed to insert HeartRatePoint (legacy fallback): \(error)")
+                }
+            } else {
+                print("Failed to insert HeartRatePoint: \(error)")
+            }
         }
     }
 
