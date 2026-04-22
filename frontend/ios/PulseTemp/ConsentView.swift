@@ -4,49 +4,111 @@ struct ConsentView: View {
     var onConsentGiven: () -> Void
 
     var body: some View {
-        VStack(spacing: 30) {
-            Text("Welcome to SmartHeat Tracker")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
+        ZStack {
+            // Trust-focused Background
+            LinearGradient(
+                colors: [Color.blue.opacity(0.1), Color.teal.opacity(0.1), Color.white],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("📋 How We Use Your Data")
-                        .font(.headline)
+            VStack(spacing: 24) {
+                Spacer()
 
-                    Text("""
-SmartHeat Tracker uses your health data from Apple HealthKit — including heart rate, steps walked, calories burned, and distance — to estimate your core body temperature using scientifically validated methods.
+                // Illustration
+                Image("privacy_illustration")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 180)
+                    .shadow(color: .blue.opacity(0.2), radius: 20, x: 0, y: 10)
 
-We securely store this data on-device using SQLite. Your data is never sent to external servers and is only used to personalize your experience and enable research participation if you opt-in.
-""")
-
-                    Text("🔐 Your Privacy Matters")
-                        .font(.headline)
-
-                    Text("""
-Participation in any research study is completely voluntary. You can withdraw your consent at any time from the Profile tab. We comply with all institutional and ethical standards, including PII/PHI handling rules.
-""")
+                VStack(spacing: 8) {
+                    Text("Your Privacy First")
+                        .font(.system(.title, design: .rounded))
+                        .fontWeight(.bold)
+                    
+                    Text("We believe your health data should stay yours.")
+                        .font(.system(.subheadline, design: .rounded))
+                        .foregroundColor(.secondary)
                 }
-                .padding()
-            }
 
-            Button(action: {
-                onConsentGiven()
-            }) {
-                Text("I Agree")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.accentColor)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-            }
-            .padding(.horizontal)
+                // Glassmorphism Content Area
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        ConsentSection(
+                            icon: "doc.text.fill",
+                            title: "Data Usage",
+                            content: "SmartHeat Tracker uses heart rate, steps, and calories to estimate core temperature locally on your device."
+                        )
+                        
+                        ConsentSection(
+                            icon: "server.rack",
+                            title: "On-Device Storage",
+                            content: "Your data is stored securely in an encrypted on-device database and is never sent to external servers."
+                        )
+                        
+                        ConsentSection(
+                            icon: "hand.raised.fill",
+                            title: "Full Control",
+                            content: "Participation is voluntary. You can withdraw your consent and delete all data at any time from your profile."
+                        )
+                    }
+                    .padding(24)
+                }
+                .background(.thinMaterial)
+                .cornerRadius(24)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+                )
+                .padding(.horizontal, 24)
+                .frame(maxHeight: 350)
 
-            Spacer()
+                Spacer()
+
+                Button(action: {
+                    onConsentGiven()
+                }) {
+                    Text("Grant Consent & Continue")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(colors: [.blue, .teal], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+            }
         }
-        .padding()
+    }
+}
+
+struct ConsentSection: View {
+    let icon: String
+    let title: String
+    let content: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundColor(.blue)
+                    .font(.subheadline)
+                Text(title)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+            }
+            
+            Text(content)
+                .font(.system(.footnote, design: .rounded))
+                .foregroundColor(.secondary)
+                .lineSpacing(4)
+        }
     }
 }
 

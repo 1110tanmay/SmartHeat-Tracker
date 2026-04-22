@@ -217,8 +217,11 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
     healthStore.execute(query)
   }
   
-  func fetchCaloriesTrend() {
-    guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { return }
+  func fetchCaloriesTrend(completion: (() -> Void)? = nil) {
+    guard let type = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned) else { 
+      completion?()
+      return 
+    }
     let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
     let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -231,13 +234,17 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
       }
       DispatchQueue.main.async {
         self.caloriesTrendData = data
+        completion?()
       }
     }
     healthStore.execute(query)
   }
   
-  func fetchStepsTrend() {
-    guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+  func fetchStepsTrend(completion: (() -> Void)? = nil) {
+    guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { 
+      completion?()
+      return 
+    }
     let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
     let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -250,12 +257,16 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
       }
       DispatchQueue.main.async {
         self.stepsTrendData = data
+        completion?()
       }
     }
     healthStore.execute(query)
   }
-  func fetchDistanceTrend() {
-    guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { return }
+  func fetchDistanceTrend(completion: (() -> Void)? = nil) {
+    guard let type = HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning) else { 
+      completion?()
+      return 
+    }
     let start = Calendar.current.date(byAdding: .hour, value: -6, to: Date()) ?? Date()
     let predicate = HKQuery.predicateForSamples(withStart: start, end: Date())
     let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
@@ -268,6 +279,7 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
       }
       DispatchQueue.main.async {
         self.distanceTrendData = data
+        completion?()
       }
     }
     healthStore.execute(query)
@@ -281,7 +293,28 @@ class HealthKitManager: NSObject, ObservableObject, HKWorkoutSessionDelegate {
       print("📈 Core Temp Trend Data loaded with \(filteredData.count) points.")
     }
   }
+  func loadLastKnownMetrics() {
+    DispatchQueue.main.async {
+      self.latestHeartRate = DatabaseManager.shared.fetchAllHeartRatePoints().last?.bpm
+      self.latestSteps = DatabaseManager.shared.fetchAllStepPoints().last?.steps
+      self.latestCalories = DatabaseManager.shared.fetchAllCaloriePoints().last?.calories
+      self.latestDistance = DatabaseManager.shared.fetchAllDistancePoints().last?.distance
+      self.latestCoreTemp = DatabaseManager.shared.fetchAllCoreTempPoints().last?.temp
+      
+      // Load trends as well to avoid empty charts on start
+      self.heartRateData = DatabaseManager.shared.fetchAllHeartRatePoints().suffix(50)
+      self.stepsTrendData = DatabaseManager.shared.fetchAllStepPoints().suffix(50)
+      self.caloriesTrendData = DatabaseManager.shared.fetchAllCaloriePoints().suffix(50)
+      self.distanceTrendData = DatabaseManager.shared.fetchAllDistancePoints().suffix(50)
+      self.coreTempTrendData = DatabaseManager.shared.fetchAllCoreTempPoints().suffix(50)
+      
+      print("📦 Local cache loaded into UI.")
+    }
+  }
+
   func fetchAllMetrics() {
+    loadLastKnownMetrics() // Load immediately from DB
+    
     fetchLatestHeartRateAndUpdateCoreTemp()
     fetchLatestSteps()
     fetchLatestCalories()

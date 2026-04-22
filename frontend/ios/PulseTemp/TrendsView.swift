@@ -26,83 +26,138 @@ struct TrendsView: View {
         }
     }
 
+    @State private var showContent = false
+
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Timeframe Picker
-                    Picker("Timeframe", selection: $selectedTimeframe) {
-                        ForEach(Timeframe.allCases) { timeframe in
-                            Text(timeframe.rawValue).tag(timeframe)
+            ZStack {
+                // Premium Background
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.1), Color.teal.opacity(0.1), Color.white],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 24) {
+                        
+                        // Custom Timeframe Picker
+                        HStack(spacing: 0) {
+                            ForEach(Timeframe.allCases) { timeframe in
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        selectedTimeframe = timeframe
+                                    }
+                                }) {
+                                    Text(timeframe.rawValue)
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .fontWeight(selectedTimeframe == timeframe ? .bold : .medium)
+                                        .foregroundColor(selectedTimeframe == timeframe ? .primary : .secondary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            ZStack {
+                                                if selectedTimeframe == timeframe {
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .fill(Color.white)
+                                                        .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+                                                        .matchedGeometryEffect(id: "activeTab", in: tabAnimation)
+                                                }
+                                            }
+                                        )
+                                }
+                            }
                         }
+                        .padding(4)
+                        .background(.thinMaterial)
+                        .cornerRadius(16)
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+                        .opacity(showContent ? 1 : 0)
+                        .offset(y: showContent ? 0 : 10)
+
+                        VStack(spacing: 24) {
+                            // Core Temperature
+                            TrendCard(
+                                title: "Core Temperature (\(temperatureUnit))",
+                                icon: "thermometer",
+                                color: .orange,
+                                data: filteredCoreTemp.map { ($0.timestamp, convertTemp($0.temp)) },
+                                yRange: temperatureUnit == "°F" ? 95.0...104.0 : 35.0...40.0
+                            )
+                            .opacity(showContent ? 1 : 0)
+                            .offset(y: showContent ? 0 : 20)
+                            .animation(.spring().delay(0.1), value: showContent)
+
+                            // Heart Rate
+                            TrendCard(
+                                title: "Heart Rate (BPM)",
+                                icon: "heart.fill",
+                                color: .red,
+                                data: filteredHeartRate.map { ($0.timestamp, Double($0.bpm)) }
+                            )
+                            .opacity(showContent ? 1 : 0)
+                            .offset(y: showContent ? 0 : 20)
+                            .animation(.spring().delay(0.2), value: showContent)
+
+                            // Steps
+                            TrendCard(
+                                title: "Steps Count",
+                                icon: "figure.walk",
+                                color: .blue,
+                                data: filteredSteps.map { ($0.timestamp, Double($0.steps)) }
+                            )
+                            .opacity(showContent ? 1 : 0)
+                            .offset(y: showContent ? 0 : 20)
+                            .animation(.spring().delay(0.3), value: showContent)
+
+                            // Calories
+                            TrendCard(
+                                title: "Calories Burned",
+                                icon: "bolt.fill",
+                                color: .purple,
+                                data: filteredCalories.map { ($0.timestamp, $0.calories) }
+                            )
+                            .opacity(showContent ? 1 : 0)
+                            .offset(y: showContent ? 0 : 20)
+                            .animation(.spring().delay(0.4), value: showContent)
+
+                            // Distance
+                            TrendCard(
+                                title: "Distance (\(distanceUnit))",
+                                icon: "map.fill",
+                                color: .green,
+                                data: filteredDistance.map { ($0.timestamp, $0.distance) }
+                            )
+                            .opacity(showContent ? 1 : 0)
+                            .offset(y: showContent ? 0 : 20)
+                            .animation(.spring().delay(0.5), value: showContent)
+                        }
+                        .padding(.bottom, 30)
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding()
-
-                    Group {
-                        // Core Temperature
-                      if !filteredCoreTemp.isEmpty {
-                          TrendChart(
-                              title: "Core Temperature Trends (\(temperatureUnit))",
-                              color: .orange,
-                              data: filteredCoreTemp.map { ($0.timestamp, convertTemp($0.temp)) }
-                          )
-                      } else {
-                          NoDataView(title: "Core Temperature")
-                      }
-
-
-                        // Heart Rate
-                        if !filteredHeartRate.isEmpty {
-                            TrendChart(title: "Heart Rate Trends (\(selectedTimeframe.rawValue))", color: .red, data: filteredHeartRate.map { ($0.timestamp, Double($0.bpm)) })
-                        } else {
-                            NoDataView(title: "Heart Rate")
-                        }
-
-                        // Steps
-                        if !filteredSteps.isEmpty {
-                            TrendChart(title: "Steps Trends (\(selectedTimeframe.rawValue))", color: .blue, data: filteredSteps.map { ($0.timestamp, Double($0.steps)) })
-                        } else {
-                            NoDataView(title: "Steps")
-                        }
-
-                        // Calories
-                        if !filteredCalories.isEmpty {
-                            TrendChart(title: "Calories Burned Trends (\(selectedTimeframe.rawValue))", color: .purple, data: filteredCalories.map { ($0.timestamp, $0.calories) })
-                        } else {
-                            NoDataView(title: "Calories")
-                        }
-
-                        // Distance
-                        if !filteredDistance.isEmpty {
-                            TrendChart(title: "Distance Covered Trends (\(distanceUnit))", color: .green, data: filteredDistance.map { ($0.timestamp, $0.distance) })
-                        } else {
-                            NoDataView(title: "Distance")
-                        }
-                    }
-
-                    Spacer()
                 }
-                .padding()
-            }
-            .navigationTitle("Trends")
-            .onAppear {
-                healthKitManager.fetchHeartRateTrend()
-                healthKitManager.fetchCoreTempTrend()
-                healthKitManager.fetchHistoricalHeartRate()
-                healthKitManager.fetchHistoricalSteps()
-                healthKitManager.fetchHistoricalCalories()
-                healthKitManager.fetchHistoricalDistance()
-                healthKitManager.fetchHistoricalCoreTemp()
-            }
-            .onChange(of: selectedTimeframe) { _ in
-                // No need to fetch again on change, just filter the already available data
-                filterAllData()
+                .navigationTitle("Historical Trends")
+                .onAppear {
+                    healthKitManager.fetchHeartRateTrend()
+                    healthKitManager.fetchCoreTempTrend()
+                    healthKitManager.fetchHistoricalHeartRate()
+                    healthKitManager.fetchHistoricalSteps()
+                    healthKitManager.fetchHistoricalCalories()
+                    healthKitManager.fetchHistoricalDistance()
+                    healthKitManager.fetchHistoricalCoreTemp()
+                    
+                    withAnimation(.easeOut(duration: 0.8)) {
+                        showContent = true
+                    }
+                }
             }
         }
     }
+    
+    @Namespace private var tabAnimation
 
-    // MARK: - Filtering Logic
+    // MARK: - Filtering Logic (unchanged)
     private var mergedCoreTempData: [CoreTempPoint] {
         let merged = healthKitManager.historicalCoreTemp + healthKitManager.coreTempTrendData
         let uniqueByTimestamp = Dictionary(merged.map { ($0.timestamp, $0) }, uniquingKeysWith: { current, _ in current })
@@ -148,13 +203,12 @@ struct TrendsView: View {
     private var filteredDistance: [DistancePoint] {
         healthKitManager.historicalDistance.filter { isWithinSelectedTimeframe($0.timestamp) }
     }
-  private func convertTemp(_ celsius: Double) -> Double {
-      return temperatureUnit == "°F" ? (celsius * 9 / 5) + 32 : celsius
-  }
-
+    
+    private func convertTemp(_ celsius: Double) -> Double {
+        return temperatureUnit == "°F" ? (celsius * 9 / 5) + 32 : celsius
+    }
 
     private func filterAllData() {
-        // Just trigger recomputation when timeframe changes
         _ = filteredCoreTemp
         _ = filteredHeartRate
         _ = filteredSteps
@@ -163,62 +217,95 @@ struct TrendsView: View {
     }
 }
 
-
-// MARK: - TrendChart Component
-struct TrendChart: View {
+// MARK: - TrendCard Component
+struct TrendCard: View {
     let title: String
+    let icon: String
     let color: Color
     let data: [(Date, Double)]
-
-    @AppStorage("temperatureUnit") private var temperatureUnit: String = "°C"
+    var yRange: ClosedRange<Double>? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.headline)
-                .padding(.leading)
-
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                ZStack {
+                    Circle().fill(color.opacity(0.1)).frame(width: 32, height: 32)
+                    Image(systemName: icon).foregroundColor(color).font(.system(size: 14, weight: .bold))
+                }
+                Text(title)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                Spacer()
+            }
+            
             Group {
-                if title.contains("Core Temperature") {
+                if !data.isEmpty {
                     Chart {
-                        ForEach(Array(data.enumerated()), id: \.offset) { index, point in
+                        ForEach(data.indices, id: \.self) { index in
+                            let point = data[index]
+                            
+                            AreaMark(
+                                x: .value("Time", point.0),
+                                y: .value("Value", point.1)
+                            )
+                            .foregroundStyle(
+                                .linearGradient(
+                                    colors: [color.opacity(0.3), color.opacity(0.05)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .interpolationMethod(.catmullRom)
+                            
                             LineMark(
                                 x: .value("Time", point.0),
                                 y: .value("Value", point.1)
                             )
                             .foregroundStyle(color)
+                            .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                            .interpolationMethod(.catmullRom)
                         }
                     }
-                    .chartYScale(domain: temperatureUnit == "°F" ? 95.0...104.0 : 35.0...40.0)
+                    .chartXAxis(.hidden)
+                    .chartYAxis {
+                        AxisMarks(position: .leading) { value in
+                            AxisValueLabel()
+                                .font(.system(size: 10, design: .rounded))
+                        }
+                    }
+                    .ifLet(yRange) { chart, range in
+                        chart.chartYScale(domain: range)
+                    }
                 } else {
-                    Chart {
-                        ForEach(Array(data.enumerated()), id: \.offset) { index, point in
-                            LineMark(
-                                x: .value("Time", point.0),
-                                y: .value("Value", point.1)
-                            )
-                            .foregroundStyle(color)
-                        }
+                    VStack {
+                        Spacer()
+                        Text("No data available for this period")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundColor(.secondary)
+                        Spacer()
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
-            .frame(height: 200)
-            .padding(.horizontal)
+            .frame(height: 150)
         }
+        .padding(20)
+        .background(.thinMaterial)
+        .cornerRadius(24)
+        .padding(.horizontal)
     }
 }
 
-
-
-// MARK: - NoData View
-struct NoDataView: View {
-    let title: String
-
-    var body: some View {
-        VStack {
-            Text("No \(title) data available.")
-                .foregroundColor(.gray)
-                .padding()
+extension View {
+    @ViewBuilder
+    func ifLet<V, Transform: View>(
+        _ value: V?,
+        transform: (Self, V) -> Transform
+    ) -> some View {
+        if let value = value {
+            transform(self, value)
+        } else {
+            self
         }
     }
 }

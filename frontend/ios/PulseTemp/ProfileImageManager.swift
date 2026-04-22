@@ -6,7 +6,7 @@ class ProfileImageManager: ObservableObject {
 
     @Published private(set) var profileImage: UIImage? = nil
 
-    private let fileName = "profile_picture.png"
+    private let fileName = "profile_photo.png"
 
     private init() {
         loadProfileImage()
