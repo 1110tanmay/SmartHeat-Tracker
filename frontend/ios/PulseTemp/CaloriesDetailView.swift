@@ -5,50 +5,130 @@ struct CaloriesDetailView: View {
     @EnvironmentObject var healthManager: HealthKitManager
     @State private var timer: Timer?
 
+    @State private var showContent = false
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                // Title
-                Text("Calories Burned today:")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
+        ZStack {
+            // Premium Background
+            LinearGradient(
+                colors: [Color.purple.opacity(0.15), Color.orange.opacity(0.1), Color.white],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                // Chart or Placeholder
-                if !healthManager.caloriesTrendData.isEmpty {
-                    caloriesChart
-                        .animation(.easeInOut(duration: 0.5), value: healthManager.caloriesTrendData)
-                } else {
-                    Text("No calorie data available.")
-                        .foregroundColor(.gray)
-                        .padding()
-                }
-
-                // Latest Highlight
-                if let calories = healthManager.latestCalories {
-                    VStack {
-                        Text("Latest: \(currentTime())")
-                            .foregroundColor(.white)
+            ScrollView {
+                VStack(spacing: 24) {
+                    
+                    // HERO Metric Card
+                    VStack(spacing: 12) {
+                        Text("Active Energy Burned")
+                            .font(.system(.subheadline, design: .rounded))
                             .fontWeight(.bold)
-                        Text("\(Int(calories)) kcal")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                            .foregroundColor(.secondary)
+                        
+                        Text("\(Int(healthManager.latestCalories ?? 0))")
+                            .font(.system(size: 64, weight: .black, design: .rounded))
+                            .foregroundColor(.primary)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.purple)
-                    .cornerRadius(12)
-                }
+                    .padding(.top, 20)
+                    .scaleEffect(showContent ? 1 : 0.9)
+                    .opacity(showContent ? 1 : 0)
 
-                Spacer()
+                    // 📊 Chart Card
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Label("ENERGY TREND", systemImage: "bolt.heart.fill")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.black)
+                                .foregroundColor(.purple)
+                            Spacer()
+                            if let min = healthManager.caloriesTrendData.map(\.calories).min(),
+                               let max = healthManager.caloriesTrendData.map(\.calories).max() {
+                                Text("\(Int(min)) - \(Int(max)) kcal")
+                                    .font(.system(.caption, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Chart {
+                            ForEach(healthManager.caloriesTrendData) { point in
+                                AreaMark(
+                                    x: .value("Time", point.timestamp),
+                                    y: .value("Calories", point.calories)
+                                )
+                                .foregroundStyle(
+                                    .linearGradient(
+                                        colors: [.purple.opacity(0.3), .purple.opacity(0.05)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .interpolationMethod(.catmullRom)
+
+                                LineMark(
+                                    x: .value("Time", point.timestamp),
+                                    y: .value("Calories", point.calories)
+                                )
+                                .foregroundStyle(.purple)
+                                .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                                .interpolationMethod(.catmullRom)
+                            }
+                        }
+                        .chartXAxis {
+                            AxisMarks(values: .stride(by: .hour, count: 4)) { value in
+                                AxisValueLabel(format: .dateTime.hour())
+                                    .font(.system(size: 10, design: .rounded))
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading) { value in
+                                AxisValueLabel()
+                                    .font(.system(size: 10, design: .rounded))
+                            }
+                        }
+                        .frame(height: 220)
+                    }
+                    .padding(24)
+                    .background(.thinMaterial)
+                    .cornerRadius(32)
+                    .padding(.horizontal)
+                    .offset(y: showContent ? 0 : 20)
+                    .opacity(showContent ? 1 : 0)
+
+                    // 💡 Insights Card
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("METABOLIC INSIGHT", systemImage: "sparkles")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.black)
+                            .foregroundColor(.purple)
+                        
+                        Text("Active energy burn is calculated from your movement and heart rate. It contributes significantly to your overall thermal output and core temperature regulation.")
+                            .font(.system(.footnote, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(4)
+                    }
+                    .padding(24)
+                    .background(Color.white.opacity(0.5))
+                    .cornerRadius(24)
+                    .padding(.horizontal)
+                    .offset(y: showContent ? 0 : 20)
+                    .opacity(showContent ? 1 : 0)
+
+                    Spacer()
+                }
             }
-            .padding()
         }
-        .navigationTitle("Calories Burned")
+        .navigationTitle("Calories")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             healthManager.fetchCaloriesTrend()
             healthManager.fetchLatestCalories()
             startPolling()
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                showContent = true
+            }
         }
         .onDisappear {
             stopPolling()

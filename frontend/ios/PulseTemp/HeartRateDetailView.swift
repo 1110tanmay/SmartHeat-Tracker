@@ -23,82 +23,129 @@ struct HeartRateDetailView: View {
         return timeFormatter.string(from: lastPoint.timestamp)
     }
 
+    @State private var showContent = false
+
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                
-                // RANGE Display
-                VStack {
-                    Text("RANGE")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    Text(heartRateRange)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                }
+        ZStack {
+            // Premium Background
+            LinearGradient(
+                colors: [Color.red.opacity(0.15), Color.pink.opacity(0.1), Color.white],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-                // Chart Title
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Heart Rate Trend")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding(.leading)
-
-                    // Heart Rate Chart
-                    Chart {
-                        ForEach(healthKitManager.heartRateData) { point in
-                            LineMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("BPM", point.bpm)
-                            )
-                            .foregroundStyle(point.bpm == healthKitManager.heartRateData.last?.bpm ? Color.red : Color.blue)
-
-                            PointMark(
-                                x: .value("Time", point.timestamp),
-                                y: .value("BPM", point.bpm)
-                            )
-                        }
+            ScrollView {
+                VStack(spacing: 24) {
+                    
+                    // HERO Metric Card
+                    VStack(spacing: 12) {
+                        Text("Current Heart Rate")
+                            .font(.system(.subheadline, design: .rounded))
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
+                        
+                        Text(latestHeartRate)
+                            .font(.system(size: 54, weight: .black, design: .rounded))
+                            .foregroundColor(.primary)
                     }
-                    .chartYAxis {
-                        AxisMarks(position: .trailing) { value in
-                            AxisGridLine()
-                            AxisValueLabel {
-                                if let bpmValue = value.as(Double.self) {
-                                    Text(String(format: "%.0f", bpmValue))
-                                }
+                    .padding(.top, 20)
+                    .scaleEffect(showContent ? 1 : 0.9)
+                    .opacity(showContent ? 1 : 0)
+
+                    // 📊 Chart Card
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Label("HR TREND", systemImage: "heart.text.square.fill")
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.black)
+                                .foregroundColor(.red)
+                            Spacer()
+                            Text(heartRateRange)
+                                .font(.system(.caption, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Chart {
+                            ForEach(healthKitManager.heartRateData) { point in
+                                AreaMark(
+                                    x: .value("Time", point.timestamp),
+                                    y: .value("BPM", point.bpm)
+                                )
+                                .foregroundStyle(
+                                    .linearGradient(
+                                        colors: [.red.opacity(0.3), .red.opacity(0.05)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .interpolationMethod(.catmullRom)
+
+                                LineMark(
+                                    x: .value("Time", point.timestamp),
+                                    y: .value("BPM", point.bpm)
+                                )
+                                .foregroundStyle(.red)
+                                .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round))
+                                .interpolationMethod(.catmullRom)
                             }
                         }
+                        .chartXAxis {
+                            AxisMarks(values: .stride(by: .hour, count: 4)) { value in
+                                AxisValueLabel(format: .dateTime.hour())
+                                    .font(.system(size: 10, design: .rounded))
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading) { value in
+                                AxisValueLabel()
+                                    .font(.system(size: 10, design: .rounded))
+                            }
+                        }
+                        .frame(height: 220)
                     }
-                    .frame(height: 200)
+                    .padding(24)
+                    .background(.thinMaterial)
+                    .cornerRadius(32)
                     .padding(.horizontal)
-                }
+                    .offset(y: showContent ? 0 : 20)
+                    .opacity(showContent ? 1 : 0)
 
-                // Latest Heart Rate Tile
-                VStack {
-                    Text("Latest: \(latestTimestamp)")
-                        .foregroundColor(.white)
-                        .fontWeight(.bold)
-                    Text(latestHeartRate)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
+                    // 💡 Insights Card
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("CARDIAC INSIGHT", systemImage: "heart.circle.fill")
+                            .font(.system(.caption, design: .rounded))
+                            .fontWeight(.black)
+                            .foregroundColor(.red)
+                        
+                        Text("Heart rate is a primary indicator of your cardiovascular exertion and thermal stress. Tracking your BPM helps in accurate core body temperature estimation.")
+                            .font(.system(.footnote, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .lineSpacing(4)
+                    }
+                    .padding(24)
+                    .background(Color.white.opacity(0.5))
+                    .cornerRadius(24)
+                    .padding(.horizontal)
+                    .offset(y: showContent ? 0 : 20)
+                    .opacity(showContent ? 1 : 0)
+
+                    Spacer()
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.red)
-                .cornerRadius(12)
-              
-                Spacer()
             }
-            .padding()
         }
-        .navigationTitle("Heart Rate Details")
+        .navigationTitle("Heart Rate")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-          healthKitManager.fetchLatestHeartRateAndUpdateCoreTemp() // 🔥 Immediate fetch
-            startTimer()                            // ⏱️ Start 10s auto-refresh
+            healthKitManager.fetchLatestHeartRateAndUpdateCoreTemp()
+            startTimer()
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                showContent = true
+            }
         }
         .onDisappear {
-            stopTimer()                             // 🛑 Stop timer on exit
+            stopTimer()
         }
     }
 

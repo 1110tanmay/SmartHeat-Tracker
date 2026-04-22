@@ -10,49 +10,64 @@ struct HealthMetricCard: View {
     var trailingView: AnyView? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 16) {
-                // Icon Circle
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: 16) {
+                // Icon Circle with Premium Gradient
                 ZStack {
                     Circle()
-                        .fill(color.opacity(0.2))
-                        .frame(width: 50, height: 50)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.15), color.opacity(0.05)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 48, height: 48)
 
                     Image(systemName: icon)
-                        .font(.system(size: 24, weight: .medium))
+                        .font(.system(size: 20, weight: .bold))
                         .foregroundColor(color)
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.uppercased())
+                        .font(.system(.caption, design: .rounded))
+                        .fontWeight(.black)
+                        .foregroundColor(.secondary)
+                        .opacity(0.6)
 
                     Text(value)
-                        .font(.title3)
-                        .fontWeight(.semibold)
+                        .font(.system(.title2, design: .rounded))
+                        .fontWeight(.bold)
                         .foregroundColor(.primary)
                 }
 
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.secondary.opacity(0.3))
             }
 
             // Optional Trailing View (Chart, etc.)
             if let trailingView = trailingView {
                 trailingView
-                    .frame(height: 60)
+                    .frame(height: isLarge ? 80 : 60)
+                    .transition(.opacity)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, minHeight: isLarge ? 150 : nil)
+        .padding(20)
+        .frame(maxWidth: .infinity, minHeight: isLarge ? 160 : nil)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 4)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground).opacity(0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.primary.opacity(0.03), lineWidth: 1)
+                )
         )
+        .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 10)
+        .padding(.horizontal, 4)
     }
 }
 

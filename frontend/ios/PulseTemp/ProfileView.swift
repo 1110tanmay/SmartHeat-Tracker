@@ -46,199 +46,267 @@ struct ProfileView: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                // 📸 Profile Photo Section
-                Section {
-                    VStack {
-                        if let selectedImage = selectedImage {
-                            Image(uiImage: selectedImage)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 120, height: 120)
-                                .clipShape(Circle())
-                                .shadow(radius: 5)
-                        } else {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 120, height: 120)
-                                .overlay(Text("Add Photo").foregroundColor(.blue))
+            ZStack {
+                // Premium Background
+                LinearGradient(
+                    colors: [Color.purple.opacity(0.1), Color.blue.opacity(0.1), Color.white],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(spacing: 32) {
+                        
+                        // 📸 HERO Profile Section
+                        VStack(spacing: 16) {
+                            ZStack {
+                                if let selectedImage = selectedImage {
+                                    Image(uiImage: selectedImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 140, height: 140)
+                                        .clipShape(Circle())
+                                        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                                } else {
+                                    Circle()
+                                        .fill(Color.white)
+                                        .frame(width: 140, height: 140)
+                                        .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
+                                        .overlay(
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 60))
+                                                .foregroundColor(.gray.opacity(0.3))
+                                        )
+                                }
+                                
+                                // Edit Badge
+                                Circle()
+                                    .fill(LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .foregroundColor(.white)
+                                            .font(.caption)
+                                    )
+                                    .offset(x: 45, y: 45)
+                            }
+                            .onTapGesture { isPickerPresented = true }
+                            
+                            Text(name.isEmpty ? "Anonymous User" : name)
+                                .font(.system(.title2, design: .rounded))
+                                .fontWeight(.bold)
+                        }
+                        .padding(.top, 20)
+
+                        // 📌 Personal Info Card
+                        VStack(alignment: .leading, spacing: 20) {
+                            ProfileSectionHeader(title: "Personal Information", icon: "person.text.rectangle")
+                            
+                            VStack(spacing: 16) {
+                                PremiumProfileField(label: "Name", value: $name, isEditing: isEditing, icon: "pencil")
+                                
+                                HStack {
+                                    Label("Date of Birth", systemImage: "calendar")
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    if isEditing {
+                                        DatePicker("", selection: $dob, displayedComponents: .date)
+                                            .labelsHidden()
+                                    } else {
+                                        Text(dateFormatter.string(from: dob))
+                                            .font(.system(.body, design: .rounded))
+                                    }
+                                }
+                                
+                                Divider().opacity(0.5)
+                                
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("BIOLOGY & ETHNICITY")
+                                        .font(.system(.caption2, design: .rounded))
+                                        .fontWeight(.black)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Picker("Sex", selection: $sex) {
+                                        ForEach(sexOptions, id: \.self) { Text($0).tag($0) }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .disabled(!isEditing)
+                                    
+                                    Picker("Ethnicity", selection: $ethnicity) {
+                                        ForEach(ethnicityOptions, id: \.self) { Text($0).tag($0) }
+                                    }
+                                    .disabled(!isEditing)
+                                }
+                                
+                                Divider().opacity(0.5)
+                                
+                                HStack(spacing: 16) {
+                                    PremiumProfileField(label: "Weight", value: $weight, isEditing: isEditing, icon: "scalemass", keyboardType: .numberPad)
+                                    PremiumProfileField(label: "Height", value: $height, isEditing: isEditing, icon: "ruler", keyboardType: .numberPad)
+                                }
+                            }
+                            .padding(20)
+                            .background(.thinMaterial)
+                            .cornerRadius(24)
+                        }
+                        .padding(.horizontal)
+
+                        // 📌 Units Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            ProfileSectionHeader(title: "Unit Preferences", icon: "slider.horizontal.3")
+                            
+                            VStack(spacing: 16) {
+                                HStack {
+                                    Text("Temperature")
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Picker("Temp", selection: $temperatureUnit) {
+                                        ForEach(tempUnits, id: \.self) { Text($0).tag($0) }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .frame(width: 120)
+                                    .disabled(!isEditing)
+                                }
+                                
+                                HStack {
+                                    Text("Distance")
+                                        .font(.system(.subheadline, design: .rounded))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Picker("Dist", selection: $distanceUnit) {
+                                        ForEach(distanceUnits, id: \.self) { Text($0).tag($0) }
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .frame(width: 120)
+                                    .disabled(!isEditing)
+                                }
+                            }
+                            .padding(20)
+                            .background(.thinMaterial)
+                            .cornerRadius(24)
+                        }
+                        .padding(.horizontal)
+
+                        // 📌 Actions
+                        VStack(spacing: 16) {
+                            if isEditing {
+                                Button(action: {
+                                    saveProfile()
+                                    isEditing = false
+                                }) {
+                                    Text("Save Profile Changes")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing))
+                                        .cornerRadius(16)
+                                        .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                                }
+                            }
+
+                            Button(action: {
+                                exportAndEmailData()
+                            }) {
+                                HStack {
+                                    Image(systemName: "square.and.arrow.up")
+                                    Text("Export Research Data")
+                                }
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.accentColor)
+                                .cornerRadius(16)
+                            }
+
+                            Button(action: {
+                                showResetAlert = true
+                            }) {
+                                Text("Reset All App Data")
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.red)
+                                    .padding(.top, 10)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 20)
+
+                        // 🏷️ Attribution Footer
+                        VStack(spacing: 4) {
+                            Text("Built with ❤️!")
+                            Text("A Tanmay Shelar Production.")
+                                .fontWeight(.bold)
+                        }
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundColor(.secondary.opacity(0.6))
+                        .padding(.bottom, 40)
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+                .navigationTitle("Profile")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(isEditing ? "Cancel" : "Edit") { isEditing.toggle() }
+                    }
+                }
+                .onAppear { loadProfile() }
+                .sheet(isPresented: $isPickerPresented) {
+                    PhotoPicker(selectedImage: $selectedImage)
+                }
+                .sheet(item: $mailData) { mailItem in
+                    MailView(data: mailItem) { result in
+                        switch result {
+                        case .success: print("✅ Mail sent")
+                        case .failure(let error): print("❌ Mail failed: \(error.localizedDescription)")
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .onTapGesture { isPickerPresented = true }
                 }
-
-                // 📌 Personal Info Section
-                Section(header: Text("Personal Information")) {
-                    EditableField(label: "Name", value: $name, isEditing: isEditing)
-                    if isEditing {
-                        DatePicker("Date of Birth", selection: $dob, displayedComponents: .date)
-                    } else {
-                        HStack {
-                            Text("Date of Birth").font(.headline)
-                            Spacer()
-                            Text(dateFormatter.string(from: dob))
-                        }
-                    }
-
-                    Picker("Sex", selection: $sex) {
-                        ForEach(sexOptions, id: \.self) { Text($0).tag($0) }
-                    }.pickerStyle(SegmentedPickerStyle()).disabled(!isEditing)
-
-                    Picker("Ethnicity", selection: $ethnicity) {
-                        ForEach(ethnicityOptions, id: \.self) { Text($0).tag($0) }
-                    }.disabled(!isEditing)
-
-                    Picker("Profession", selection: $profession) {
-                        ForEach(professionOptions, id: \.self) { Text($0).tag($0) }
-                    }.disabled(!isEditing)
-
-                    EditableField(label: "Weight (kg)", value: $weight, keyboardType: .numberPad, isEditing: isEditing)
-                    EditableField(label: "Height (cm)", value: $height, keyboardType: .numberPad, isEditing: isEditing)
-                }
-
-                // 📌 Units Section
-                Section(header: Text("Unit Preferences")) {
-                    Picker("Temperature Unit", selection: $temperatureUnit) {
-                        ForEach(tempUnits, id: \.self) { Text($0).tag($0) }
-                    }.pickerStyle(SegmentedPickerStyle()).disabled(!isEditing)
-
-                    Picker("Distance Unit", selection: $distanceUnit) {
-                        ForEach(distanceUnits, id: \.self) { Text($0).tag($0) }
-                    }.pickerStyle(SegmentedPickerStyle()).disabled(!isEditing)
-                }
-
-                // 📌 Data Sharing Section
-                Section(header: Text("Data Sharing")) {
-                  HStack {
-                      Spacer()
-                      Button(action: {
-                          // ✅ Keep your full export & email logic here
-                          let profile = DatabaseManager.shared.fetchUserProfile()
-                          let workouts = DatabaseManager.shared.fetchRecentWorkouts()
-
-                          print("✅ Profile loaded: \(String(describing: profile))")
-                          print("✅ Workouts loaded: \(workouts.count) entries")
-
-                          guard let profile = profile,
-                                let fileURL = ResearchExportManager.shared.exportToCSV(userProfile: profile, workouts: workouts) else {
-                              print("❌ Export failed or profile missing")
-                              return
-                          }
-
-                          print("✅ Saved XLSX to: \(fileURL.path)")
-
-                          do {
-                              let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
-                              if let fileSize = attributes[.size] as? UInt64 {
-                                  print("✅ File exists with size: \(fileSize) bytes")
-                              } else {
-                                  print("⚠️ Could not get file size.")
-                              }
-                          } catch {
-                              print("❌ Error getting file attributes: \(error.localizedDescription)")
-                          }
-
-                          DispatchQueue.global().async {
-                              do {
-                                  let fileData = try Data(contentsOf: fileURL)
-                                  let mail = MailData(
-                                      recipients: ["tshelar@asu.edu"],
-                                      subject: "Smart Heat Tracker Research Data",
-                                      message: "Attached is the anonymized data for research.",
-                                      attachments: [
-                                          .init(data: fileData, mimeType: "text/csv", fileName: fileURL.lastPathComponent)
-                                      ]
-                                  )
-
-                                  DispatchQueue.main.async {
-                                      self.mailData = mail
-                                  }
-                              } catch {
-                                  print("❌ Could not read CSV file data. Error: \(error.localizedDescription)")
-                              }
-                          }
-                      }) {
-                          Text("Share My Data for Research")
-                              .fontWeight(.semibold)
-                              .padding(.horizontal, 32)
-                              .padding(.vertical, 12)
-                              .background(Color.accentColor)
-                              .foregroundColor(.white)
-                              .cornerRadius(10)
-                      }
-                      Spacer()
-                  }
-                  .listRowBackground(Color.clear)
-                  .listRowSeparator(.hidden)
-
-.foregroundColor(.blue)
-
-                  HStack {
-                      Spacer()
-                      Button(action: {
-                          showResetAlert = true
-                      }) {
-                          Text("Reset Profile")
-                              .fontWeight(.semibold)
-                              .padding(.horizontal, 32)
-                              .padding(.vertical, 12)
-                              .foregroundColor(.red)
-                              .overlay(
-                                  RoundedRectangle(cornerRadius: 10)
-                                      .stroke(Color.red, lineWidth: 1)
-                              )
-                      }
-                      Spacer()
-                  }
-                  .listRowBackground(Color.clear)
-
-                }
-
-              if isEditing {
-                  Section {
-                      HStack {
-                          Spacer()
-                          Button(action: {
-                              saveProfile()
-                              isEditing = false
-                          }) {
-                              Text("Save")
-                                  .fontWeight(.semibold)
-                                  .padding(.horizontal, 40)
-                                  .padding(.vertical, 12)
-                                  .background(Color.accentColor)
-                                  .foregroundColor(.white)
-                                  .cornerRadius(10)
-                          }
-                          Spacer()
-                      }
-                      .listRowBackground(Color.clear)
-                  }
-              }
-            }
-            .navigationTitle("Profile")
-            .toolbar {
-                Button(isEditing ? "Cancel" : "Edit") { isEditing.toggle() }
-            }
-            .onAppear { loadProfile() }
-            .sheet(isPresented: $isPickerPresented) {
-                PhotoPicker(selectedImage: $selectedImage)
-            }
-            .sheet(item: $mailData) { mailItem in
-                MailView(data: mailItem) { result in
-                    switch result {
-                    case .success: print("✅ Mail sent")
-                    case .failure(let error): print("❌ Mail failed: \(error.localizedDescription)")
-                    }
+                .alert("Reset Profile", isPresented: $showResetAlert) {
+                    Button("Reset", role: .destructive) { resetProfile() }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("Are you sure you want to reset your profile? This cannot be undone.")
                 }
             }
-            .alert("Reset Profile", isPresented: $showResetAlert) {
-                Button("Reset", role: .destructive) { resetProfile() }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Are you sure you want to reset your profile?")
+        }
+    }
+
+    // MARK: - Logic Refactor
+    private func exportAndEmailData() {
+        // ✅ Keep your full export & email logic here
+        let profile = DatabaseManager.shared.fetchUserProfile()
+        let workouts = DatabaseManager.shared.fetchRecentWorkouts()
+
+        guard let profile = profile,
+              let fileURL = ResearchExportManager.shared.exportToCSV(userProfile: profile, workouts: workouts) else {
+            return
+        }
+
+        DispatchQueue.global().async {
+            do {
+                let fileData = try Data(contentsOf: fileURL)
+                let mail = MailData(
+                    recipients: ["tshelar@asu.edu"],
+                    subject: "Smart Heat Tracker Research Data",
+                    message: "Attached is the anonymized data for research.",
+                    attachments: [
+                        .init(data: fileData, mimeType: "text/csv", fileName: fileURL.lastPathComponent)
+                    ]
+                )
+
+                DispatchQueue.main.async {
+                    self.mailData = mail
+                }
+            } catch {
+                print("❌ Could not read CSV file data.")
             }
         }
     }
@@ -291,46 +359,82 @@ struct ProfileView: View {
 
     func saveProfileImage() {
         guard let selectedImage = selectedImage else { return }
-        if let data = selectedImage.jpegData(compressionQuality: 0.8) {
-            try? data.write(to: getDocumentsDirectory().appendingPathComponent("profile_photo.png"))
-        }
+        ProfileImageManager.shared.save(image: selectedImage)
     }
 
     func loadProfileImage() {
-        let url = getDocumentsDirectory().appendingPathComponent("profile_photo.png")
-        if FileManager.default.fileExists(atPath: url.path),
-           let data = try? Data(contentsOf: url) {
-            selectedImage = UIImage(data: data)
+        if let image = ProfileImageManager.shared.profileImage {
+            selectedImage = image
+        } else {
+            // Fallback load if needed
+            ProfileImageManager.shared.loadProfileImage()
+            selectedImage = ProfileImageManager.shared.profileImage
         }
     }
 
     func deleteProfileImage() {
-        let url = getDocumentsDirectory().appendingPathComponent("profile_photo.png")
-        if FileManager.default.fileExists(atPath: url.path) {
-            try? FileManager.default.removeItem(at: url)
-        }
+        ProfileImageManager.shared.deleteProfileImage()
+        selectedImage = nil
     }
 }
 
-// MARK: - EditableField
-struct EditableField: View {
+// MARK: - Premium UI Components
+
+struct ProfileSectionHeader: View {
+    let title: String
+    let icon: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.purple)
+                .font(.footnote)
+            Text(title)
+                .font(.system(.footnote, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundColor(.secondary)
+                .textCase(.uppercase)
+        }
+        .padding(.leading, 8)
+    }
+}
+
+struct PremiumProfileField: View {
     let label: String
     @Binding var value: String
-    var keyboardType: UIKeyboardType = .default
     var isEditing: Bool
-
+    let icon: String
+    var keyboardType: UIKeyboardType = .default
+    
     var body: some View {
-        HStack {
-            Text(label).font(.headline)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundColor(.purple.opacity(0.7))
+                Text(label)
+                    .font(.system(.caption, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundColor(.secondary)
+            }
+            
             TextField(label, text: $value)
+                .font(.system(.body, design: .rounded))
                 .keyboardType(keyboardType)
                 .disabled(!isEditing)
-                .multilineTextAlignment(.trailing)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.white.opacity(isEditing ? 1 : 0.5))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(isEditing ? 0.1 : 0), lineWidth: 1)
+                )
         }
     }
 }
 
-// MARK: - Photo Picker
+// MARK: - Photo Picker (unchanged)
 struct PhotoPicker: UIViewControllerRepresentable {
     @Binding var selectedImage: UIImage?
 
