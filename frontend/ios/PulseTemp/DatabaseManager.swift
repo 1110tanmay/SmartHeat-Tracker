@@ -345,27 +345,36 @@ class DatabaseManager {
               let sessionStart = row[startTime]
               let sessionEnd = row[endTime]
 
-              // Filter heart rate points within workout time range
-              let hrPoints = fetchAllHeartRatePoints().filter {
-                  $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
-              }
+              // Fast indexed queries to pull only needed points
+              let hrPoints = (try? self.db.prepare(self.heartRateHistory
+                  .filter(self.heartRateTimestamp >= sessionStart && self.heartRateTimestamp <= sessionEnd)
+                  .order(self.heartRateTimestamp.asc)).map {
+                      HeartRatePoint(timestamp: $0[self.heartRateTimestamp], bpm: $0[self.heartRateBPM])
+              }) ?? []
 
-              // Filter core temp points within workout time range
-              let tempPoints = fetchAllCoreTempPoints().filter {
-                  $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
-              }
+              let tempPoints = (try? self.db.prepare(self.coreTempHistory
+                  .filter(self.coreTempTimestamp >= sessionStart && self.coreTempTimestamp <= sessionEnd)
+                  .order(self.coreTempTimestamp.asc)).map {
+                      CoreTempPoint(timestamp: $0[self.coreTempTimestamp], temp: $0[self.coreTempValue])
+              }) ?? []
 
-            let stepPoints = fetchAllStepPoints().filter {
-                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
-            }
+              let stepPoints = (try? self.db.prepare(self.stepsHistory
+                  .filter(self.stepsTimestamp >= sessionStart && self.stepsTimestamp <= sessionEnd)
+                  .order(self.stepsTimestamp.asc)).map {
+                      StepPoint(timestamp: $0[self.stepsTimestamp], steps: $0[self.stepsCount])
+              }) ?? []
 
-            let caloriePoints = fetchAllCaloriePoints().filter {
-                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
-            }
+              let caloriePoints = (try? self.db.prepare(self.caloriesHistory
+                  .filter(self.caloriesTimestamp >= sessionStart && self.caloriesTimestamp <= sessionEnd)
+                  .order(self.caloriesTimestamp.asc)).map {
+                      CaloriePoint(timestamp: $0[self.caloriesTimestamp], calories: $0[self.caloriesBurned])
+              }) ?? []
 
-            let distancePoints = fetchAllDistancePoints().filter {
-                $0.timestamp >= sessionStart && $0.timestamp <= sessionEnd
-            }
+              let distancePoints = (try? self.db.prepare(self.distanceHistory
+                  .filter(self.distanceTimestamp >= sessionStart && self.distanceTimestamp <= sessionEnd)
+                  .order(self.distanceTimestamp.asc)).map {
+                      DistancePoint(timestamp: $0[self.distanceTimestamp], distance: $0[self.distanceCovered])
+              }) ?? []
 
             return WorkoutSession(
                 id: UUID(uuidString: row[id]) ?? UUID(),

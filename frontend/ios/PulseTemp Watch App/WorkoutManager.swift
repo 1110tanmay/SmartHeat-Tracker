@@ -4,6 +4,17 @@ import Combine
 import UserNotifications
 import WatchConnectivity
 
+// MARK: - Alert State
+private enum CoreTempAlertType {
+    case high
+    case recovered
+}
+
+private enum CoreTempAlertState {
+    case normal
+    case alerting
+}
+
 class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
@@ -26,6 +37,11 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
     private var timerCancellable: AnyCancellable?
     private var questionnaireTimer: Timer?
     private var notificationSent = false
+
+    // MARK: - Core Temp Alert Thresholds
+    private let coreTempHighThreshold: Double = 38.5
+    private let coreTempRecoveryThreshold: Double = 37.5
+    private var coreTempAlertState: CoreTempAlertState = .normal
     
     override init() {
         super.init()
@@ -252,9 +268,52 @@ class WorkoutManager: NSObject, ObservableObject, WCSessionDelegate {
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         center.delegate = self
     }
-    private func sendCoreTempAlertNotification() { /* ... */ }
-    private func startQuestionnaireTimer() { /* ... */ }
-    private func sendQuestionnaireNotification() { /* ... */ }
+    private func sendCoreTempAlertNotification(type: CoreTempAlertType) {
+        let content = UNMutableNotificationContent()
+        switch type {
+        case .high:
+            content.title = "🌡️ High Core Temp"
+            content.body = "Your core temperature is elevated. Rest and hydrate now."
+        case .recovered:
+            content.title = "✅ Temp Normalised"
+            content.body = "Core temperature is back to normal. You can resume intensity."
+        }
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "coreTempAlert-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    private func startQuestionnaireTimer() {
+        questionnaireTimer?.invalidate()
+        // Fires every 30 minutes to prompt a check-in
+        questionnaireTimer = Timer.scheduledTimer(withTimeInterval: 30 * 60, repeats: true) { [weak self] _ in
+            self?.sendQuestionnaireNotification()
+        }
+    }
+
+    private func sendQuestionnaireNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "📝 Quick Check-In"
+        content.body = "How are you feeling? Tap to log your exertion, hydration & thermal comfort."
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "questionnaire-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        UNUserNotificationCenter.current().add(request) { [weak self] error in
+            if error == nil {
+                // Surface the questionnaire sheet via the published flag
+                DispatchQueue.main.async {
+                    self?.showQuestionnaire = true
+                }
+            }
+        }
+    }
 }
 
 extension WorkoutManager {
@@ -284,9 +343,18 @@ extension WorkoutManager {
       if let receivedCoreTemp = applicationContext["coreTemp"] as? Double {
         self.coreTemp = receivedCoreTemp
         print("⌚️ WATCH LOG [2/3]: UPDATED state. self.coreTemp is now: \(self.coreTemp)")
-        
+
         if receivedCoreTemp > 0 {
           self.coreTempSamples.append(receivedCoreTemp)
+        }
+
+        // MARK: Core Temp Threshold Alerting
+        if receivedCoreTemp >= self.coreTempHighThreshold && self.coreTempAlertState == .normal {
+          self.coreTempAlertState = .alerting
+          self.sendCoreTempAlertNotification(type: .high)
+        } else if receivedCoreTemp < self.coreTempRecoveryThreshold && self.coreTempAlertState == .alerting {
+          self.coreTempAlertState = .normal
+          self.sendCoreTempAlertNotification(type: .recovered)
         }
       }
       print("📥 WATCH: Received synchronized pair - HR: \(self.heartRate), Temp: \(self.coreTemp)")

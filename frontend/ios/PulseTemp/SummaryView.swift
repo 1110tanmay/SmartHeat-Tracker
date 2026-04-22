@@ -10,33 +10,24 @@ struct SummaryView: View {
     @State private var firstName: String = "User"
     @State private var wave = false
     @StateObject private var workoutViewModel = WorkoutSummaryViewModel()
-    // MARK: - Computed Properties
-    var heartRate: Int {
-        Int(healthKitManager.latestHeartRate ?? 75)
-    }
+    // MARK: - Display State (populated via .onReceive to guarantee immediate re-renders)
+    @State private var displayHeartRate: String = "..."
+    @State private var displayCoreTemp: String = "-"
+    @State private var displaySteps: String = "..."
+    @State private var displayCalories: String = "..."
+    @State private var displayDistance: String = "..."
 
-    var steps: Int {
-        Int(healthKitManager.latestSteps ?? 8500)
-    }
-
-    var calories: Int {
-        Int(healthKitManager.latestCalories ?? 410)
-    }
-
-    var distanceKm: Double {
-        healthKitManager.latestDistance ?? 4.5
-    }
-
-    var coreTemp: String {
-        guard let ct = healthKitManager.latestCoreTemp else {
-            return "-"
-        }
-
-        let converted = temperatureUnit == "°F"
-            ? (ct * 9 / 5) + 32
-            : ct
-
+    // Formats coreTemp based on user's unit preference
+    private func formattedCoreTemp(_ ct: Double) -> String {
+        let converted = temperatureUnit == "°F" ? (ct * 9 / 5) + 32 : ct
         return String(format: "%.4f %@", converted, temperatureUnit)
+    }
+
+    // Formats distance based on user's unit preference
+    private func formattedDist(_ d: Double) -> String {
+        distanceUnit == "miles"
+            ? String(format: "%.2f miles", d * 0.621371)
+            : String(format: "%.2f km", d)
     }
 
     // MARK: - Mock chart for temperature (for now)
@@ -70,7 +61,7 @@ struct SummaryView: View {
                     NavigationLink(destination: CoreTempDetailView()) {
                         HealthMetricCard(
                             title: "Core Temperature",
-                            value: coreTemp,
+                            value: displayCoreTemp,
                             icon: "thermometer",
                             color: .orange,
                             isLarge: true,
@@ -105,7 +96,7 @@ struct SummaryView: View {
                     NavigationLink(destination: HeartRateDetailView()) {
                         HealthMetricCard(
                             title: "Heart Rate",
-                            value: "\(heartRate) BPM",
+                            value: displayHeartRate,
                             icon: "heart.fill",
                             color: .red
                         )
@@ -118,7 +109,7 @@ struct SummaryView: View {
                     NavigationLink(destination: CaloriesDetailView()) {
                         HealthMetricCard(
                             title: "Calories Burned",
-                            value: "\(calories) kcal",
+                            value: displayCalories,
                             icon: "bolt.fill",
                             color: .purple
                         )
@@ -128,7 +119,7 @@ struct SummaryView: View {
                     NavigationLink(destination: StepsDetailView()) {
                         HealthMetricCard(
                             title: "Steps Walked",
-                            value: "\(steps.formatted()) steps",
+                            value: displaySteps,
                             icon: "figure.walk",
                             color: .teal
                         )
@@ -138,16 +129,29 @@ struct SummaryView: View {
                     NavigationLink(destination: DistanceDetailView().environmentObject(healthKitManager)) {
                         HealthMetricCard(
                             title: "Distance Covered",
-                            value: formattedDistance(distanceKm),
+                            value: displayDistance,
                             icon: "map.fill",
                             color: .blue
                         )
                     }
                 }
                 .padding(.vertical)
-                .onReceive(healthKitManager.$latestSteps) { _ in }
-                .onReceive(healthKitManager.$latestCalories) { _ in }
-                .onReceive(healthKitManager.$latestDistance) { _ in }
+                // MARK: Reliable re-render listeners — capture into @State to guarantee SwiftUI invalidation
+                .onReceive(healthKitManager.$latestHeartRate) { val in
+                    displayHeartRate = val.map { "\(Int($0)) BPM" } ?? "..."
+                }
+                .onReceive(healthKitManager.$latestCoreTemp) { val in
+                    displayCoreTemp = val.map { formattedCoreTemp($0) } ?? "-"
+                }
+                .onReceive(healthKitManager.$latestSteps) { val in
+                    displaySteps = val.map { "\($0.formatted()) steps" } ?? "..."
+                }
+                .onReceive(healthKitManager.$latestCalories) { val in
+                    displayCalories = val.map { "\(Int($0)) kcal" } ?? "..."
+                }
+                .onReceive(healthKitManager.$latestDistance) { val in
+                    displayDistance = val.map { formattedDist($0) } ?? "..."
+                }
             }
             .navigationTitle("Summary")
             .navigationBarTitleDisplayMode(.large)
@@ -181,15 +185,6 @@ struct SummaryView: View {
     }
 
     // MARK: - Helpers
-    func formattedDistance(_ km: Double) -> String {
-        if distanceUnit == "miles" {
-            let miles = km * 0.621371
-            return String(format: "%.2f miles", miles)
-        } else {
-            return String(format: "%.2f km", km)
-        }
-    }
-
     func timeBasedGreeting() -> String {
         let hour = Calendar.current.component(.hour, from: Date())
         switch hour {
