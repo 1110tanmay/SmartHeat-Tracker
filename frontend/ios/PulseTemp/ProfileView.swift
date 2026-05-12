@@ -193,6 +193,27 @@ struct ProfileView: View {
                         }
                         .padding(.horizontal)
 
+                        VStack(alignment: .leading, spacing: 12) {
+                            ProfileSectionHeader(title: "Legal", icon: "doc.plaintext")
+
+                            NavigationLink(destination: DisclaimerAndCitationsView()) {
+                                HStack {
+                                    Text("Disclaimer & References")
+                                        .font(.system(.body, design: .rounded))
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(20)
+                                .background(.thinMaterial)
+                                .cornerRadius(24)
+                            }
+                        }
+                        .padding(.horizontal)
+
                         // 📌 Actions
                         VStack(spacing: 16) {
                             if isEditing {

@@ -62,8 +62,13 @@ struct SummaryView: View {
                         
                         Text("👋")
                             .font(.title2)
-                            .rotationEffect(.degrees(wave ? 12 : -12), anchor: .bottom)
-                            .frame(width: 35)
+                            .rotationEffect(.degrees(wave ? 15 : 0), anchor: .bottom)
+                            .frame(width: 38)
+                            .animation(
+                                .easeInOut(duration: 0.7)
+                                    .repeatForever(autoreverses: true),
+                                value: wave
+                            )
                     }
                     .padding(.horizontal)
                     .padding(.top, 10)
@@ -234,9 +239,7 @@ struct SummaryView: View {
                     self.firstName = "User"
                 }
                 
-                withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                    wave = true
-                }
+                wave = true
                 
                 // Trigger staggered entrance
                 withAnimation(.easeOut(duration: 0.8)) {
