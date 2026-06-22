@@ -1,15 +1,15 @@
-* Smart Heat Tracker
+ Smart Heat Tracker
 - This is an Apple Watch and iPhone companion application that monitors physiological heat stress using wearable sensor data and delivers actionable insights during physical activity.
 
-* Overview
+ Overview
 - Smart Heat Detection is a health and fitness monitoring application for the Apple ecosystem. 
 - It leverages Apple Watch sensor data to analyze physiological responses associated with heat stress and physical exertion, presenting users with intuitive dashboards, historical trends, and personalized insights.
 - This is privacy first application that does not use cloud in any way. All the data is stored offline SQLite database, where data is first de-identified.
-* Motivation
+ Motivation
 - Heat-related illnesses affect thousands of athletes, outdoor workers, and individuals exercising in demanding environments each year. This project investigates whether wearable sensor data can provide meaningful, 
 real-time information about physiological heat stress and thermal strain.
 
-* Screenshots of the application:
+ Screenshots of the application:
 
 <img width="250" height="541" alt="0x0ss" src="https://github.com/user-attachments/assets/637aa008-79ab-41a7-af6e-9e8c2bcb74d4" />
 <img width="250" height="541" alt="0x0ss (1)" src="https://github.com/user-attachments/assets/4e4e788d-57dd-4a02-814d-20b46d70310e" />
@@ -25,14 +25,14 @@ real-time information about physiological heat stress and thermal strain.
 <img width="150" height="183" alt="0x0ss (11)" src="https://github.com/user-attachments/assets/c09c681a-f214-4942-8d34-c592c6534bd6" />
 
 
-* Secondary objectives included:
+ Secondary objectives included:
 - Gaining hands-on experience with SwiftUI and HealthKit APIs
 - Building a companion Apple Watch application
 - Exploring health data visualization techniques
 - Understanding the regulatory and validation landscape for health technology
 
 
-* Features
+ Features
 - Real-Time Core body heat estimation including alerts. 
 - Streams live metrics from Apple HealthKit:
 - Heart Rate
@@ -41,54 +41,54 @@ real-time information about physiological heat stress and thermal strain.
 - Active Calories Burned
 - Activity Data
 
-* Historical Trends
+ Historical Trends
 - Interactive dashboards for visualizing health and activity data across daily, weekly, and monthly timeframes, with metric comparisons and pattern analysis.
 
-* Apple Watch Integration
+ Apple Watch Integration
 - A companion watchOS application that collects sensor data, synchronizes with HealthKit, and surfaces key metrics on-device.
 
-* SwiftUI Interface
+ SwiftUI Interface
 - Built entirely in SwiftUI with dark mode support, responsive layouts, interactive charts, and native Apple design conventions.
-* User Profiles
+ User Profiles
 - Configurable profiles for personal information, preferred measurement units, and application preferences.
 
-* Technology Stack
+ Technology Stack
 - CategoryDetails: 
 - Language: Swift
 - Frameworks: SwiftUI, HealthKit, WatchKit, CombinePlatformsiOS, watchOSToolsXcode, Git, GitHub
 
-* Algorithm: 
+ Algorithm: 
 - We the EC Temp algorithm to estimate the core body temperature based on the heart rate in real time. 
 Reseach paper used for reference: Looney, David & Buller, Mark & Gribok, Andrei & Leger, Jayme & Potter, Adam & Rumpler, William & Tharion, William & Welles, Alexander & Friedl, Karl & Hoyt, Reed. (2018). Estimating Resting Core Temperature Using Heart Rate. Journal for the Measurement of Physical Behaviour. 1. 1-7. 10.1123/jmpb.2017-0003. 
 
-* Architecture
+ Architecture
 <img width="572" height="668" alt="smart_heat_detection_architecture" src="https://github.com/user-attachments/assets/bc18088c-420f-42c0-9845-0b02d73f2888" />
 
 
-* Privacy
+ Privacy
 - All health data remains within Apple's HealthKit ecosystem.
 - No third-party analytics are used.
 - No health data is sold or shared with external parties.
 - Explicit user authorization is required before any health data is accessed.
 
 
-* Disclaimer
+ Disclaimer
 - Smart Heat Detection is a software engineering and research project intended for informational and educational purposes only.
 - It is not a medical device and must not be used for diagnosis, treatment decisions, or emergency response. 
 
-* Challenges & Lessons Learned
+ Challenges & Lessons Learned
 - HealthKit Integration
 - Working with HealthKit required careful handling of authorization workflows, data permissions, background delivery, and sensor limitations.
 
-* Wearable Data Interpretation
+ Wearable Data Interpretation
 - A key insight from this project was recognizing the distinction between collecting physiological data, interpreting it, and scientifically validating health-related conclusions.
 - This underscored the importance of rigorous validation, regulatory awareness, and responsible development practices in health technology.
 
-* App Store Submission
+ App Store Submission
 - The project provided direct experience with App Store Connect, TestFlight, metadata preparation, and Apple's health application review requirements.
 - It unfortunately was not approved beacuse we could not conduct pilot studies and write a paper about the results. 
 
-* Future Work
+ Future Work
 
 - Advanced heat stress modeling algorithms
 - Machine learning–based analytics
@@ -97,7 +97,7 @@ Reseach paper used for reference: Looney, David & Buller, Mark & Gribok, Andrei 
 - Additional HealthKit metric integrations
 - Scientific validation studies
 
-* Acknowledgements
+ Acknowledgements
 
 - Apple HealthKit Documentation
 - SwiftUI Community
